@@ -19,11 +19,6 @@ const userSchema = new Schema(
       required: true,
       unique: true,
     },
-    employeeId: {
-      type: Number,
-      required: true,
-      unique: true,
-    },
     role: {
       type: String,
       enum: ["admin", "user"],

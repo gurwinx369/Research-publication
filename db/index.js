@@ -3,7 +3,7 @@ import dotenv from "dotenv";
 
 // Configure dotenv to look for .env file in parent directory (root)
 dotenv.config({
-  path: "../.env",  // Go up one directory to find .env file
+  path: "../.env", 
 });
 
 // Connect to MongoDB
