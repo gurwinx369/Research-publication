@@ -9,7 +9,7 @@ const registerUser = async (req, res) => {
     password,
     email,
     role,
-  })
+  });
   if (!employee_id || !password || !email) {
     return res
       .status(400)
@@ -39,9 +39,62 @@ const registerUser = async (req, res) => {
   }
 };
 
-const registerPublication = async () => {};
+const registerPublication = async (req, res) => {
+  const { title, abstract, publication_date, isbn, file_url, department } =
+    req.body;
+  console.log({
+    title,
+    abstract,
+    // publication_date,
+    isbn,
+    //file_url,
+    department,
+  });
+  if (!title || !abstract || !isbn || !department) {
+    return res
+      .status(400)
+      .json({ message: "Please provide all required fields" });
+  }
+  try {
+    // Validate file upload
+    if (!req.file) {
+      return res.status(400).json({ message: "File is required" });
+    }
 
-const registerAuthor = async () => {};
+    // Upload file to Cloudinary
+    //const fileUploadResult = await UploadOnCloudinary(req.file.path);
+    //if (!fileUploadResult || !fileUploadResult.secure_url) {
+    //return res.status(500).json({ message: "File upload failed" });
+    // }
 
-const registerDepartment = async () => {};
-export { registerUser };
+    const newPublication = new Publication({
+      title,
+      abstract,
+      publication_date,
+      isbn,
+      //file_url: fileUploadResult.secure_url,
+      department,
+    });
+
+    await newPublication.save();
+    return res
+      .status(201)
+      .json({
+        message: "Publication registered successfully",
+        publication: newPublication,
+      });
+  } catch (error) {
+    console.error("Error registering publication:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+const registerAuthor = async (req, res) => {};
+
+const registerDepartment = async (req, res) => {};
+export {
+  registerUser,
+  registerPublication,
+  registerAuthor,
+  registerDepartment,
+};
