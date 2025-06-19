@@ -25,10 +25,6 @@ const userSchema = new Schema(
       enum: ["admin", "user", "HOD"],
       default: "user",
     },
-    created_at: {
-      type: Date,
-      default: Date.now,
-    },
   },
   { timestamps: true }
 );

@@ -2,4 +2,4 @@
 1. route based authentication.
 2. admin panel
 3. user seeding 
-4. go for controller writing 
+4. go for controller writing (implement everything in one)
