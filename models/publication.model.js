@@ -8,7 +8,7 @@ const publicationSchema = new Schema(
       trim: true,
       maxLength: [200, "Title must be max 100 characters"],
     },
-    description: {
+    abstract: {
       type: String,
       required: true,
       trim: true,
