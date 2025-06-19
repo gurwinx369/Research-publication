@@ -1,6 +1,6 @@
 import { mongoose, Schema } from "mongoose";
 
-const publicSchema = new Schema(
+const authorSchema = new Schema(
   {
     employee_id: {
       type: Number,
@@ -31,4 +31,4 @@ const publicSchema = new Schema(
   { timestamps: true }
 );
 
-export const Author = mongoose.model("Author", publicSchema);
+export const Author = mongoose.model("Author", authorSchema);

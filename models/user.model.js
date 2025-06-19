@@ -39,5 +39,5 @@ const userSchema = new Schema(
   },
   { timestamps: true }
 );
-
+userSchema.index({ employee_id: 1, email: 1 }); //email and employee_id index for faster queries
 export const User = mongoose.model("User", userSchema);
