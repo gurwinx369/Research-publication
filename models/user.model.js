@@ -1,14 +1,22 @@
 import { mongoose, Schema } from "mongoose";
 
+// User Model - For authentication and basic info
 const userSchema = new Schema(
   {
+    employee_id: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      maxLength: [20, "Employee ID must be max 20 characters"],
+      index: true,
+    },
     username: {
       type: String,
       required: true,
       unique: true,
       trim: true,
-      maxLength: [10, "Username must be only 10 character long!"],
-      index: true,
+      maxLength: [50, "Username must be max 50 characters"],
     },
     password: {
       type: String,
@@ -21,15 +29,9 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "user"],
+      enum: ["admin", "user", "HOD"],
       default: "user",
     },
-    publications: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Publication",
-      },
-    ],
     created_at: {
       type: Date,
       default: Date.now,
