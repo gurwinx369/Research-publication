@@ -11,13 +11,6 @@ const userSchema = new Schema(
       maxLength: [20, "Employee ID must be max 20 characters"],
       index: true,
     },
-    username: {
-      type: String,
-      required: true,
-      unique: true,
-      trim: true,
-      maxLength: [50, "Username must be max 50 characters"],
-    },
     password: {
       type: String,
       required: true,
