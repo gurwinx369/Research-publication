@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { UploadOnCloudinary } from "../utils/cloudinary.js";
 import { User, Author, Department, Publication } from "../models/index.js";
+import fs from "fs"; // For cleaning up temp files
 
 const registerUser = async (req, res) => {
   const { employee_id, password, email, role } = req.body;
@@ -10,6 +11,7 @@ const registerUser = async (req, res) => {
     email,
     role,
   });
+
   if (!employee_id || !password || !email) {
     return res
       .status(400)
@@ -40,58 +42,143 @@ const registerUser = async (req, res) => {
 };
 
 const registerPublication = async (req, res) => {
-  const { title, abstract, publication_date, isbn, file_url, department } =
-    req.body;
+  const { title, abstract, publication_date, isbn, department } = req.body;
+
+  console.log("Request body:", req.body);
+  console.log("Request file:", req.file);
   console.log({
     title,
     abstract,
-    // publication_date,
+    publication_date,
     isbn,
-    //file_url,
     department,
   });
+
+  // Remove file_url from required fields since we're getting it from file upload
   if (!title || !abstract || !isbn || !department) {
     return res
       .status(400)
       .json({ message: "Please provide all required fields" });
   }
+
   try {
     // Validate file upload
     if (!req.file) {
-      return res.status(400).json({ message: "File is required" });
+      return res.status(400).json({ message: "PDF file is required" });
     }
 
+    console.log("Uploaded file:", req.file);
+
     // Upload file to Cloudinary
-    //const fileUploadResult = await UploadOnCloudinary(req.file.path);
-    //if (!fileUploadResult || !fileUploadResult.secure_url) {
-    //return res.status(500).json({ message: "File upload failed" });
-    // }
+    console.log("Uploading file to Cloudinary:", req.file.path);
+    const fileUploadResult = await UploadOnCloudinary(req.file.path);
+
+    if (!fileUploadResult || !fileUploadResult.secure_url) {
+      console.error("Cloudinary upload failed");
+      // Clean up temp file if upload failed
+      if (fs.existsSync(req.file.path)) {
+        fs.unlinkSync(req.file.path);
+      }
+      return res.status(500).json({
+        message: "File upload to Cloudinary failed",
+        error: "Please check Cloudinary configuration",
+      });
+    }
+
+    console.log(
+      "File uploaded successfully to Cloudinary:",
+      fileUploadResult.secure_url
+    );
 
     const newPublication = new Publication({
       title,
       abstract,
       publication_date,
       isbn,
-      //file_url: fileUploadResult.secure_url,
+      file_url: fileUploadResult.secure_url,
       department,
     });
 
+    console.log("Attempting to save publication:", newPublication);
     await newPublication.save();
-    return res
-      .status(201)
-      .json({
-        message: "Publication registered successfully",
-        publication: newPublication,
-      });
+    console.log("Publication saved successfully");
+
+    // Clean up temp file after successful upload
+    if (fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    return res.status(201).json({
+      message: "Publication registered successfully",
+      publication: newPublication,
+      file_url: fileUploadResult.secure_url,
+    });
   } catch (error) {
     console.error("Error registering publication:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("Error details:", error.message);
+
+    if (error.name === "ValidationError") {
+      console.error("Validation errors:", error.errors);
+      return res.status(400).json({
+        message: "Validation error",
+        errors: error.errors,
+        details: error.message,
+      });
+    }
+
+    // Clean up temp file in case of error
+    if (req.file && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
+    }
+
+    return res.status(500).json({
+      message: "Internal server error",
+      error: error.message,
+    });
   }
 };
 
 const registerAuthor = async (req, res) => {};
 
-const registerDepartment = async (req, res) => {};
+const registerDepartment = async (req, res) => {
+  const { name, code, university, head, description } = req.body;
+  console.log({
+    name,
+    code,
+    university,
+    head,
+    description,
+  });
+
+  if (!name || !code || !university)
+    return res
+      .status(400)
+      .json({ message: "Please provide all required fields" });
+
+  try {
+    const existingDepartment = await Department.findOne({ code });
+    if (existingDepartment)
+      return res.status(400).json({ message: "Department already exists" });
+    const newDepartment = new Department({
+      name,
+      code,
+      university,
+      head,
+      description,
+    });
+    await newDepartment.save();
+    return res
+      .status(201)
+      .json({
+        message: "Department registered successfully",
+        department: newDepartment,
+      });
+  } catch (error) {
+    console.error("Error registering department:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
 export {
   registerUser,
   registerPublication,

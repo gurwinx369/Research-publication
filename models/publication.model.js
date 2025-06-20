@@ -35,7 +35,7 @@ const publicationSchema = new Schema(
     },
     file_url: {
       type: String, //store cloudinary url in the database.
-     // required: [true, "File URL is required"],
+      required: [true, "File URL is required"],
       trim: true,
       maxLength: [500, "File URL must be max 500 characters"],
       validate: {
