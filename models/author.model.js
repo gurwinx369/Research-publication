@@ -52,16 +52,6 @@ const authorSchema = new Schema(
         message: "Author order must be an integer",
       },
     },
-    role: {
-      type: String,
-      enum: {
-        values: ["primary", "co-author", "corresponding", "supervisor"], // for selecting the second author role.
-        message:
-          "Role must be one of: primary, co-author, corresponding, supervisor",
-      },
-      default: "co-author",
-      index: true,
-    },
   },
   {
     timestamps: true,

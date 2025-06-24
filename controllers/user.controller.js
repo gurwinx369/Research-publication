@@ -138,7 +138,55 @@ const registerPublication = async (req, res) => {
   }
 };
 
-const registerAuthor = async (req, res) => {};
+const registerAuthor = async (req, res) => {
+  const {
+    employee_id,
+    author_name,
+    email,
+    department,
+    publication_id,
+    author_order,
+  } = req.body;
+  console.log({
+    employee_id,
+    author_name,
+    email,
+    department,
+    publication_id,
+    author_order,
+  });
+  if (
+    !employee_id ||
+    !author_name ||
+    !email ||
+    !department ||
+    !publication_id ||
+    !author_order
+  )
+    return res
+      .status(400)
+      .json({ message: "Please provide all required fields" });
+  try {
+    const existingAuthor = await Author.findOne({ employee_id });
+    if (existingAuthor)
+      return res.status(400).json({ message: "Author already exists" });
+    const newAuthor = new Author({
+      employee_id,
+      author_name,
+      email,
+      department,
+      publication_id,
+      author_order,
+    });
+    await newAuthor.save();
+    return res
+      .status(201)
+      .json({ message: "Author registered successfully", author: newAuthor });
+  } catch (error) {
+    console.error("Error registering author:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 const registerDepartment = async (req, res) => {
   const { name, code, university, head, description } = req.body;
@@ -167,12 +215,10 @@ const registerDepartment = async (req, res) => {
       description,
     });
     await newDepartment.save();
-    return res
-      .status(201)
-      .json({
-        message: "Department registered successfully",
-        department: newDepartment,
-      });
+    return res.status(201).json({
+      message: "Department registered successfully",
+      department: newDepartment,
+    });
   } catch (error) {
     console.error("Error registering department:", error);
     return res.status(500).json({ message: "Internal server error" });

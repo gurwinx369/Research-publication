@@ -17,7 +17,7 @@ const publicationSchema = new Schema(
     },
     publication_date: {
       type: Date,
-      //required: [true, "Publication date is required"],
+      required: [true, "Publication date is required"],
       index: true, // For date-based queries
     },
     isbn: {
@@ -28,7 +28,7 @@ const publicationSchema = new Schema(
         },
         message: "Invalid ISBN format. Use ISBN-10 or ISBN-13 format",
       },
-     // required: [true, "ISBN is required"],
+      required: [true, "ISBN is required"],
       unique: true,
       index: true,
       uppercase: true, // Normalize ISBN format
