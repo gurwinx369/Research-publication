@@ -8,6 +8,7 @@ import {
   logoutAdmin,
 } from "../controllers/user.controller.js";
 import { Router } from "express";
+
 //middlewares
 import { upload } from "../middlewares/multer.middleware.js";
 import {
@@ -16,20 +17,21 @@ import {
 } from "../middlewares/auth.middleware.js";
 
 const router = Router();
-// authentication and admin middleware use
-router.use("/admin/*", requireAdmin);
 
-// Register a new user
+// Public routes (no authentication required)
 router.post("/register", registerUser);
-// Register publication with file upload - using single file upload for PDF
-router.post("/publication", upload.single("pdfFile"), registerPublication);
-router.post("/author", registerAuthor);
-router.post("/department", registerDepartment);
-
-// Admin authentication routes (public - for login/register)
 router.post("/admin/register", registerAdmin);
 router.post("/admin/login", loginAdmin);
-router.post("/admin/logout", logoutAdmin);
-// Protected admin routes (require authentication)
-router.use("/admin/dashboard/*", requireAdmin);
+
+// Protected routes (require authentication)
+router.post("/publication", upload.single("pdfFile"), registerPublication);
+router.post("/author", requireAuthentication, registerAuthor);
+router.post("/department", requireAuthentication, registerDepartment);
+router.post("/admin/logout", requireAuthentication, logoutAdmin);
+
+// Admin-only routes
+// If you have specific admin dashboard routes, define them here:
+// router.get("/admin/dashboard", requireAdmin, getDashboard);
+// router.get("/admin/users", requireAdmin, getUsers);
+
 export default router;
