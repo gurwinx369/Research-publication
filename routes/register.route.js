@@ -3,20 +3,35 @@ import {
   registerPublication,
   registerAuthor,
   registerDepartment,
+  registerAdmin,
+  loginAdmin,
+  logoutAdmin,
 } from "../controllers/user.controller.js";
-import { upload } from "../middlewares/multer.middleware.js"; // Import your multer middleware
-
 import { Router } from "express";
+
+//middlewares
+import { upload } from "../middlewares/multer.middleware.js";
+import {
+  requireAdmin,
+  requireAuthentication,
+} from "../middlewares/auth.middleware.js";
 
 const router = Router();
 
-// Register a new user
+// Public routes (no authentication required)
 router.post("/register", registerUser);
+router.post("/admin/register", registerAdmin);
+router.post("/admin/login", loginAdmin);
 
-// Register publication with file upload - using single file upload for PDF
+// Protected routes (require authentication)
 router.post("/publication", upload.single("pdfFile"), registerPublication);
+router.post("/author", requireAuthentication, registerAuthor);
+router.post("/department", requireAuthentication, registerDepartment);
+router.post("/admin/logout", requireAuthentication, logoutAdmin);
 
-router.post("/author", registerAuthor);
-router.post("/department", registerDepartment);
+// Admin-only routes
+// If you have specific admin dashboard routes, define them here:
+// router.get("/admin/dashboard", requireAdmin, getDashboard);
+// router.get("/admin/users", requireAdmin, getUsers);
 
 export default router;
