@@ -7,7 +7,7 @@ import MongoStore from "connect-mongo";
 const app = express();
 
 // Basic middleware
-app.use(cors({ origin: "*" }));
+app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

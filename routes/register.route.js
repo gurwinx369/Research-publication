@@ -25,8 +25,8 @@ router.post("/admin/login", loginAdmin);
 
 // Protected routes (require authentication)
 router.post("/publication", upload.single("pdfFile"), registerPublication);
-router.post("/author", requireAuthentication, registerAuthor);
-router.post("/department", requireAuthentication, registerDepartment);
+router.post("/author", registerAuthor);
+router.post("/department", registerDepartment);
 router.post("/admin/logout", requireAuthentication, logoutAdmin);
 
 // Admin-only routes

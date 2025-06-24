@@ -548,7 +548,6 @@ const loginAdmin = async (req, res) => {
     });
   }
 };
-
 // POST /api/auth/logout - Admin logout route
 const logoutAdmin = async (req, res) => {
   try {
