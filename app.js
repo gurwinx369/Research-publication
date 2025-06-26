@@ -11,7 +11,6 @@ app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ⚠️ CRITICAL: Session configuration MUST come BEFORE routes
 app.use(
   session({
     secret:
@@ -20,7 +19,7 @@ app.use(
     saveUninitialized: false,
     store: MongoStore.create({
       mongoUrl:
-        process.env.MONGODB_URI || "mongodb://localhost:27017/your-database",
+        process.env.MONGO_URI || "mongodb://localhost:27017/your-database", // FIXED: use MONGO_URI
       ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
     }),
     cookie: {
@@ -31,7 +30,6 @@ app.use(
     },
   })
 );
-
 // Routes - AFTER session middleware
 app.use("/api", userRouter);
 
