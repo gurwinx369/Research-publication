@@ -72,66 +72,87 @@ const getPublicationsPagination = async (req, res) => {
     });
   }
 };
-
-// NEW: Advanced Search Function
+// get publications by year with pagination and sorting
 const searchPublications = async (req, res) => {
   try {
     const {
-      query = "",
+      year,
       page = 1,
       limit = 10,
       sortBy = "publication_date",
       order = "desc",
-      author = "",
-      year = "",
-      department = "",
-      keywords = "",
+      populateAuthors = "true",
+      populateDepartment = "true",
     } = req.query;
 
     console.log("Search parameters:", req.query);
 
+    // Validate required year parameter
+    if (!year) {
+      return res.status(400).json({
+        success: false,
+        message: "Year parameter is required",
+        error: "Please provide a year to search publications",
+      });
+    }
+
+    // Validate year format
+    const yearNumber = parseInt(year, 10);
+    if (
+      isNaN(yearNumber) ||
+      yearNumber < 1900 ||
+      yearNumber > new Date().getFullYear() + 10
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid year provided",
+        error:
+          "Year must be a valid number between 1900 and " +
+          (new Date().getFullYear() + 10),
+      });
+    }
+
     const pageNumber = parseInt(page, 10);
     const limitNumber = parseInt(limit, 10);
 
-    // Convert keywords string to array if provided
-    const keywordsArray = keywords
-      ? keywords.split(",").map((k) => k.trim())
-      : [];
+    // Validate pagination parameters
+    if (pageNumber < 1 || limitNumber < 1 || limitNumber > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid pagination parameters",
+        error: "Page must be >= 1 and limit must be between 1 and 100",
+      });
+    }
 
-    // Use the advanced search static method from schema
+    // Use the new year-based search method from schema
     const searchOptions = {
-      textQuery: query,
-      author: author,
-      year: year ? parseInt(year, 10) : null,
-      department: department,
-      keywords: keywordsArray,
       page: pageNumber,
       limit: limitNumber,
       sortBy: sortBy,
       order: order,
+      populateAuthors: populateAuthors === "true",
+      populateDepartment: populateDepartment === "true",
     };
 
-    const publications = await Publication.advancedSearch(searchOptions);
+    console.log(
+      "Searching publications for year:",
+      yearNumber,
+      "with options:",
+      searchOptions
+    );
 
-    // Get total count for pagination (simplified version)
-    let totalCount = 0;
-    if (query.trim()) {
-      totalCount = await Publication.countDocuments({
-        $text: { $search: query },
-      });
-    } else if (author) {
-      totalCount = await Publication.getAuthorSearchCount(author);
-    } else {
-      // For other filters, you'd need to implement similar count methods
-      totalCount = publications.length; // Simplified
-    }
+    // Get publications and total count
+    const [publications, totalCount] = await Promise.all([
+      Publication.getPublicationsByYear(yearNumber, searchOptions),
+      Publication.getPublicationCountByYear(yearNumber),
+    ]);
 
     const totalPages = Math.ceil(totalCount / limitNumber);
 
     res.status(200).json({
       success: true,
       publications,
-      message: `Found ${publications.length} publications`,
+      message: `Found ${publications.length} publications for year ${yearNumber}`,
       pagination: {
         page: pageNumber,
         limit: limitNumber,
@@ -141,23 +162,22 @@ const searchPublications = async (req, res) => {
         hasPrevPage: pageNumber > 1,
       },
       searchInfo: {
-        query: query.trim(),
-        author,
-        year,
-        department,
-        keywords: keywordsArray,
+        year: yearNumber,
         resultsCount: publications.length,
+        totalForYear: totalCount,
+        sortBy,
+        order,
       },
     });
   } catch (error) {
     console.error("Search error:", error);
     res.status(500).json({
+      success: false,
       message: "Error searching publications",
       error: error.message,
     });
   }
 };
-
 // NEW: Simple Text Search Function
 const simpleTextSearch = async (req, res) => {
   try {
@@ -220,7 +240,7 @@ const searchByAuthor = async (req, res) => {
       sortBy = "publication_date",
       order = "desc",
     } = req.query;
-
+    console.log("Author search parameters:", req.query);
     if (!author.trim()) {
       return res.status(400).json({
         success: false,
@@ -300,7 +320,7 @@ const getRelatedPublications = async (req, res) => {
 // Export all functions
 export {
   getPublicationsPagination, // Your existing function
-  searchPublications, // New advanced search
+  searchPublications, // New yearly search
   simpleTextSearch, // New simple text search
   searchByAuthor,
   getAllCounts, // New author search

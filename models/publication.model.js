@@ -214,140 +214,102 @@ publicationSchema.statics.getAuthorSearchCount = async function (authorQuery) {
   return result.length > 0 ? result[0].total : 0;
 };
 
-// Static method for advanced search with multiple filters
-publicationSchema.statics.advancedSearch = async function (searchOptions = {}) {
+// NEW: Simple static method to get publications by year
+publicationSchema.statics.getPublicationsByYear = async function (
+  year,
+  options = {}
+) {
   const {
-    textQuery = "",
-    author = "",
-    year = null,
-    department = null,
-    keywords = [],
     page = 1,
     limit = 10,
     sortBy = "publication_date",
     order = "desc",
-  } = searchOptions;
+    populateAuthors = true,
+    populateDepartment = true,
+  } = options;
 
-  const pipeline = [];
-  const matchConditions = {};
-
-  // Text search
-  if (textQuery.trim()) {
-    matchConditions.$text = { $search: textQuery };
-    pipeline.push({
-      $addFields: { score: { $meta: "textScore" } },
-    });
-  }
-
-  // Year filter
-  if (year) {
-    matchConditions.publication_date = {
-      $gte: new Date(`${year}-01-01`),
-      $lt: new Date(`${year + 1}-01-01`),
-    };
-  }
-
-  // Department filter
-  if (department) {
-    matchConditions.department = new mongoose.Types.ObjectId(department);
-  }
-
-  // Keywords filter
-  if (keywords && keywords.length > 0) {
-    matchConditions.keywords = {
-      $in: keywords.map((keyword) => new RegExp(keyword, "i")),
-    };
-  }
-
-  // Add match stage if we have conditions
-  if (Object.keys(matchConditions).length > 0) {
-    pipeline.push({ $match: matchConditions });
-  }
-
-  // Author filter (requires lookup)
-  if (author.trim()) {
-    pipeline.push(
-      {
-        $lookup: {
-          from: "authors",
-          localField: "_id",
-          foreignField: "publication_id",
-          as: "authors",
-          pipeline: [
-            { $sort: { author_order: 1 } },
-            { $project: { fullname: 1, email: 1, author_order: 1 } },
-          ],
-        },
-      },
-      {
-        $match: {
-          authors: {
-            $elemMatch: {
-              $or: [
-                { fullname: { $regex: author, $options: "i" } },
-                { email: { $regex: author, $options: "i" } },
-              ],
-            },
-          },
-        },
-      }
-    );
-  }
-
-  // Sort
   const sortOrder = order === "asc" ? 1 : -1;
-  if (textQuery.trim() && sortBy === "relevance") {
-    pipeline.push({ $sort: { score: { $meta: "textScore" } } });
-  } else {
-    pipeline.push({ $sort: { [sortBy]: sortOrder } });
-  }
 
-  // Pagination
-  pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
+  // Create date range for the specified year
+  const startOfYear = new Date(`${year}-01-01`);
+  const endOfYear = new Date(`${year + 1}-01-01`);
 
-  // Populate department if not already done
-  if (!author.trim()) {
-    pipeline.push({
-      $lookup: {
-        from: "departments",
-        localField: "department",
-        foreignField: "_id",
-        as: "department",
-        pipeline: [{ $project: { name: 1 } }],
-      },
-    });
-    pipeline.push({
-      $lookup: {
-        from: "authors",
-        localField: "_id",
-        foreignField: "publication_id",
-        as: "authors",
-        pipeline: [
-          { $sort: { author_order: 1 } },
-          { $project: { fullname: 1, email: 1, author_order: 1 } },
-        ],
-      },
-    });
-  } else {
-    pipeline.push({
-      $lookup: {
-        from: "departments",
-        localField: "department",
-        foreignField: "_id",
-        as: "department",
-        pipeline: [{ $project: { name: 1 } }],
-      },
-    });
-  }
-
-  // Transform department array to object
-  pipeline.push({
-    $addFields: {
-      department: { $arrayElemAt: ["$department", 0] },
+  let query = this.find({
+    publication_date: {
+      $gte: startOfYear,
+      $lt: endOfYear,
     },
   });
 
-  return this.aggregate(pipeline);
+  // Apply sorting
+  query = query.sort({ [sortBy]: sortOrder });
+
+  // Apply pagination
+  query = query.skip((page - 1) * limit).limit(limit);
+
+  // Populate related data if requested
+  if (populateDepartment) {
+    query = query.populate("department", "name");
+  }
+
+  if (populateAuthors) {
+    query = query.populate({
+      path: "authors",
+      select: "fullname email author_order",
+      options: { sort: { author_order: 1 } },
+    });
+  }
+
+  return query.exec();
+};
+
+// NEW: Static method to get count of publications by year
+publicationSchema.statics.getPublicationCountByYear = async function (year) {
+  const startOfYear = new Date(`${year}-01-01`);
+  const endOfYear = new Date(`${year + 1}-01-01`);
+
+  return this.countDocuments({
+    publication_date: {
+      $gte: startOfYear,
+      $lt: endOfYear,
+    },
+  });
+};
+
+// NEW: Static method to get publications grouped by year (useful for analytics)
+publicationSchema.statics.getPublicationsByYearGrouped = async function (
+  startYear,
+  endYear
+) {
+  return this.aggregate([
+    {
+      $match: {
+        publication_date: {
+          $gte: new Date(`${startYear}-01-01`),
+          $lt: new Date(`${endYear + 1}-01-01`),
+        },
+      },
+    },
+    {
+      $group: {
+        _id: { $year: "$publication_date" },
+        count: { $sum: 1 },
+        publications: { $push: "$$ROOT" },
+      },
+    },
+    {
+      $sort: { _id: -1 },
+    },
+    {
+      $project: {
+        year: "$_id",
+        count: 1,
+        publications: {
+          $slice: ["$publications", 10], // Limit to 10 publications per year
+        },
+      },
+    },
+  ]);
 };
 
 // Instance method to get related publications by keywords

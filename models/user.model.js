@@ -36,6 +36,6 @@ const userSchema = new Schema(
 
 // You only need one index declaration per field; if you keep unique: true on
 // employee_id and email, you can remove the extra schema.index() below
-// userSchema.index({ employee_id: 1, email: 1 });
+userSchema.index({ employee_id: 1, email: 1, fullname: 1 });
 
 export const User = mongoose.model("User", userSchema);
