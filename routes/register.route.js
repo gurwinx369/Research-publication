@@ -7,7 +7,10 @@ import {
   loginAdmin,
   logoutAdmin,
 } from "../controllers/user.controller.js";
-import { getAllCounts } from "../controllers/data.controller.js";
+import {
+  getAllCounts,
+  getPublicationsPagination,
+} from "../controllers/data.controller.js";
 import { Router } from "express";
 
 //middlewares
@@ -21,6 +24,7 @@ const router = Router();
 
 // Public routes (no authentication required)
 router.post("/register", requireAdmin, registerUser);
+router.post("/admin/register", requireAdmin, registerAdmin);
 router.post("/admin/login", loginAdmin);
 
 // Protected routes (require authentication)
@@ -36,4 +40,5 @@ router.post("/admin/logout", requireAuthentication, logoutAdmin);
 
 // Data retrieval routes
 router.get("/counts", getAllCounts);
+router.get("/publications", getPublicationsPagination);
 export default router;

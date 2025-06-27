@@ -39,7 +39,6 @@ const publicationSchema = new Schema(
       trim: true,
       maxLength: [500, "File URL must be max 500 characters"],
       validate: {
-
         validator: function (v) {
           return /^https?:\/\/.+/.test(v);
         },
@@ -100,6 +99,8 @@ publicationSchema.virtual("primaryAuthor", {
 // Compound indexes for better query performance
 publicationSchema.index({ department: 1, publication_date: -1 });
 publicationSchema.index({ keywords: 1 }); // For keyword search
+
+// Improved text search index (removed authors since it's a virtual field)
 publicationSchema.index(
   {
     title: "text",
@@ -108,8 +109,13 @@ publicationSchema.index(
   },
   {
     weights: { title: 3, keywords: 2, abstract: 1 },
+    name: "publication_text_index",
   }
-); // Text search index
+);
+
+// Additional indexes for search optimization
+publicationSchema.index({ publication_date: -1, department: 1 }); // For date + department filtering
+publicationSchema.index({ keywords: 1, publication_date: -1 }); // For keyword + date searches
 
 // Pre-save middleware for data processing
 publicationSchema.pre("save", function (next) {
@@ -119,5 +125,253 @@ publicationSchema.pre("save", function (next) {
   }
   next();
 });
+
+// Static method to search publications by author
+publicationSchema.statics.searchByAuthor = async function (
+  authorQuery,
+  options = {}
+) {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "publication_date",
+    order = "desc",
+  } = options;
+
+  const sortOrder = order === "asc" ? 1 : -1;
+
+  return this.aggregate([
+    {
+      $lookup: {
+        from: "authors",
+        localField: "_id",
+        foreignField: "publication_id",
+        as: "authors",
+        pipeline: [
+          { $sort: { author_order: 1 } },
+          { $project: { fullname: 1, email: 1, author_order: 1 } },
+        ],
+      },
+    },
+    {
+      $match: {
+        authors: {
+          $elemMatch: {
+            $or: [
+              { fullname: { $regex: authorQuery, $options: "i" } },
+              { email: { $regex: authorQuery, $options: "i" } },
+            ],
+          },
+        },
+      },
+    },
+    { $sort: { [sortBy]: sortOrder } },
+    { $skip: (page - 1) * limit },
+    { $limit: limit },
+    {
+      $lookup: {
+        from: "departments",
+        localField: "department",
+        foreignField: "_id",
+        as: "department",
+        pipeline: [{ $project: { name: 1 } }],
+      },
+    },
+    {
+      $addFields: {
+        department: { $arrayElemAt: ["$department", 0] },
+      },
+    },
+  ]);
+};
+
+// Static method to get author search count
+publicationSchema.statics.getAuthorSearchCount = async function (authorQuery) {
+  const result = await this.aggregate([
+    {
+      $lookup: {
+        from: "authors",
+        localField: "_id",
+        foreignField: "publication_id",
+        as: "authors",
+      },
+    },
+    {
+      $match: {
+        authors: {
+          $elemMatch: {
+            $or: [
+              { fullname: { $regex: authorQuery, $options: "i" } },
+              { email: { $regex: authorQuery, $options: "i" } },
+            ],
+          },
+        },
+      },
+    },
+    { $count: "total" },
+  ]);
+
+  return result.length > 0 ? result[0].total : 0;
+};
+
+// Static method for advanced search with multiple filters
+publicationSchema.statics.advancedSearch = async function (searchOptions = {}) {
+  const {
+    textQuery = "",
+    author = "",
+    year = null,
+    department = null,
+    keywords = [],
+    page = 1,
+    limit = 10,
+    sortBy = "publication_date",
+    order = "desc",
+  } = searchOptions;
+
+  const pipeline = [];
+  const matchConditions = {};
+
+  // Text search
+  if (textQuery.trim()) {
+    matchConditions.$text = { $search: textQuery };
+    pipeline.push({
+      $addFields: { score: { $meta: "textScore" } },
+    });
+  }
+
+  // Year filter
+  if (year) {
+    matchConditions.publication_date = {
+      $gte: new Date(`${year}-01-01`),
+      $lt: new Date(`${year + 1}-01-01`),
+    };
+  }
+
+  // Department filter
+  if (department) {
+    matchConditions.department = new mongoose.Types.ObjectId(department);
+  }
+
+  // Keywords filter
+  if (keywords && keywords.length > 0) {
+    matchConditions.keywords = {
+      $in: keywords.map((keyword) => new RegExp(keyword, "i")),
+    };
+  }
+
+  // Add match stage if we have conditions
+  if (Object.keys(matchConditions).length > 0) {
+    pipeline.push({ $match: matchConditions });
+  }
+
+  // Author filter (requires lookup)
+  if (author.trim()) {
+    pipeline.push(
+      {
+        $lookup: {
+          from: "authors",
+          localField: "_id",
+          foreignField: "publication_id",
+          as: "authors",
+          pipeline: [
+            { $sort: { author_order: 1 } },
+            { $project: { fullname: 1, email: 1, author_order: 1 } },
+          ],
+        },
+      },
+      {
+        $match: {
+          authors: {
+            $elemMatch: {
+              $or: [
+                { fullname: { $regex: author, $options: "i" } },
+                { email: { $regex: author, $options: "i" } },
+              ],
+            },
+          },
+        },
+      }
+    );
+  }
+
+  // Sort
+  const sortOrder = order === "asc" ? 1 : -1;
+  if (textQuery.trim() && sortBy === "relevance") {
+    pipeline.push({ $sort: { score: { $meta: "textScore" } } });
+  } else {
+    pipeline.push({ $sort: { [sortBy]: sortOrder } });
+  }
+
+  // Pagination
+  pipeline.push({ $skip: (page - 1) * limit }, { $limit: limit });
+
+  // Populate department if not already done
+  if (!author.trim()) {
+    pipeline.push({
+      $lookup: {
+        from: "departments",
+        localField: "department",
+        foreignField: "_id",
+        as: "department",
+        pipeline: [{ $project: { name: 1 } }],
+      },
+    });
+    pipeline.push({
+      $lookup: {
+        from: "authors",
+        localField: "_id",
+        foreignField: "publication_id",
+        as: "authors",
+        pipeline: [
+          { $sort: { author_order: 1 } },
+          { $project: { fullname: 1, email: 1, author_order: 1 } },
+        ],
+      },
+    });
+  } else {
+    pipeline.push({
+      $lookup: {
+        from: "departments",
+        localField: "department",
+        foreignField: "_id",
+        as: "department",
+        pipeline: [{ $project: { name: 1 } }],
+      },
+    });
+  }
+
+  // Transform department array to object
+  pipeline.push({
+    $addFields: {
+      department: { $arrayElemAt: ["$department", 0] },
+    },
+  });
+
+  return this.aggregate(pipeline);
+};
+
+// Instance method to get related publications by keywords
+publicationSchema.methods.getRelatedPublications = async function (limit = 5) {
+  if (!this.keywords || this.keywords.length === 0) {
+    return [];
+  }
+
+  return this.constructor
+    .find({
+      _id: { $ne: this._id },
+      keywords: { $in: this.keywords },
+    })
+    .limit(limit)
+    .select("title publication_date keywords")
+    .populate("department", "name")
+    .sort({ publication_date: -1 });
+};
+
+// Instance method to check if publication is recent (within last year)
+publicationSchema.methods.isRecent = function () {
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  return this.publication_date >= oneYearAgo;
+};
 
 export const Publication = mongoose.model("Publication", publicationSchema);
