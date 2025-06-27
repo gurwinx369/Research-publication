@@ -10,6 +10,10 @@ import {
 import {
   getAllCounts,
   getPublicationsPagination,
+  searchPublications,
+  simpleTextSearch,
+  searchByAuthor,
+  getRelatedPublications,
 } from "../controllers/data.controller.js";
 import { Router } from "express";
 
@@ -41,4 +45,8 @@ router.post("/admin/logout", requireAuthentication, logoutAdmin);
 // Data retrieval routes
 router.get("/counts", getAllCounts);
 router.get("/publications", getPublicationsPagination);
+router.get("/publications/search", searchPublications); // Advanced search
+router.get("/publications/text-search", simpleTextSearch); // Simple text search
+router.get("/publications/author-search", searchByAuthor); // Author search
+router.get("/publications/:id/related", getRelatedPublications); // Related publications
 export default router;
