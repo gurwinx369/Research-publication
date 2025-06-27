@@ -18,8 +18,7 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-      mongoUrl:
-        process.env.MONGO_URI || "mongodb://localhost:27017/your-database", // FIXED: use MONGO_URI
+      mongoUrl: process.env.MONGO_URI || "Mongo uri not correct", // FIXED: use MONGO_URI
       ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
     }),
     cookie: {
