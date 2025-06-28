@@ -16,7 +16,7 @@ export const requireAdmin = async (req, res, next) => {
     if (!userId) {
       return res.status(401).json({
         success: false,
-        message: "Authentication required. Please log in first.",
+        message: "Authentication required. Please log in as an admin first.",
       });
     }
 
@@ -38,8 +38,8 @@ export const requireAdmin = async (req, res, next) => {
       });
     }
 
-    // Step 5: Verify admin role
-    if (user.role !== "admin") {
+    // Step 5: Verify admin role (FIXED: Changed || to &&)
+    if (user.role !== "admin" && user.role !== "super-admin") {
       return res.status(403).json({
         success: false,
         message: "Access denied. Admin privileges required.",
@@ -47,7 +47,7 @@ export const requireAdmin = async (req, res, next) => {
     }
 
     // Step 6: Check if admin account is still active
-    if (!user.isActive) {
+    if (user.isActive === false) {
       // Destroy session for deactivated users
       req.session.destroy((err) => {
         if (err) {
@@ -57,7 +57,7 @@ export const requireAdmin = async (req, res, next) => {
 
       return res.status(403).json({
         success: false,
-        message: "Admin account is deactivated. Access revoked.",
+        message: "Account is deactivated. Please contact administrator.",
       });
     }
 
@@ -97,6 +97,15 @@ export const requireAuthentication = async (req, res, next) => {
       return res.status(401).json({
         success: false,
         message: "Invalid session. Please log in again.",
+      });
+    }
+
+    // Check if user is active
+    if (user.isActive === false) {
+      req.session.destroy();
+      return res.status(403).json({
+        success: false,
+        message: "Account is deactivated. Please contact administrator.",
       });
     }
 

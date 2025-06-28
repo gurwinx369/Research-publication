@@ -42,7 +42,7 @@ router.post("/admin/login", loginAdmin);
 router.post("/publication", upload.single("pdfFile"), registerPublication);
 router.post("/author", registerAuthor);
 router.post("/department", registerDepartment);
-router.post("/admin/logout", requireAuthentication, logoutAdmin);
+router.get("/admin/logout", requireAuthentication, logoutAdmin);
 
 // Admin-only routes
 // If you have specific admin dashboard routes, define them here:
@@ -50,7 +50,7 @@ router.post("/admin/logout", requireAuthentication, logoutAdmin);
 // router.get("/admin/users", requireAdmin, getUsers);
 
 // Data retrieval routes
-router.get("/counts", getAllCounts);
+router.get("/counts", getAllCounts); //deaprtment, publication, users count
 router.get("/publications", getPublicationsPagination);
 router.get("/publications/search", searchPublications); // Advanced search
 router.get("/publications/text-search", simpleTextSearch); // Simple text search
@@ -58,12 +58,17 @@ router.get("/publications/author-search", searchByAuthor); // Author search
 router.get("/publications/:id/related", getRelatedPublications); // Related publications
 
 //private data retrieval routes
-router.get("/private-data/counts", getPrivateDataCounts);
-router.get("/private-data/users", getUsersWithPagination);
-router.get("/private-data/search/email", searchUserWithEmail);
+router.get("/private-data/counts", requireAdmin, getPrivateDataCounts);
+router.get("/private-data/users", requireAdmin, getUsersWithPagination);
+router.get("/private-data/search/email", requireAdmin, searchUserWithEmail);
 router.get(
   "/private-data/search/employee-id",
+  requireAdmin,
   searchUserWithEmployeeId // Fixed typo in original export
 );
-router.get("/private-data/search/fullname", searchUserWithFullName);
+router.get(
+  "/private-data/search/fullname",
+  requireAdmin,
+  searchUserWithFullName
+);
 export default router;

@@ -10,15 +10,16 @@ import {
 import fs from "fs"; // For cleaning up temp files
 
 const registerUser = async (req, res) => {
-  const { employee_id, password, email, role } = req.body;
+  const { employee_id, password, email, role, fullname } = req.body;
   console.log({
     employee_id,
     password,
     email,
     role,
+    fullname,
   });
 
-  if (!employee_id || !password || !email) {
+  if (!employee_id || !password || !email || !fullname || !role) {
     return res
       .status(400)
       .json({ message: "Please provide all required fields" });
@@ -34,7 +35,8 @@ const registerUser = async (req, res) => {
       employee_id,
       password, // Note: Password should be hashed before saving
       email,
-      role,
+      fullname: fullname.trim(), // Remove extra whitespace
+      role: role || "user", // Default to 'user' if not provided
     });
 
     await newUser.save();
@@ -423,10 +425,12 @@ const loginAdmin = async (req, res) => {
     }
 
     // Find admin by email and explicitly include password field
-    // Note: password field is typically excluded by default in mongoose schemas
     const admin = await Admin.findOne({
       email: email.toLowerCase().trim(),
     }).select("+password +role +isActive");
+
+    console.log("Admin found:", admin ? admin.email : "No admin found");
+    console.log("Admin isActive:", admin ? admin.isActive : "N/A");
 
     // Check if admin exists
     if (!admin) {
@@ -437,22 +441,18 @@ const loginAdmin = async (req, res) => {
     }
 
     // Check if admin account is active
-    if (!admin.isActive) {
+    if (admin.isActive === false) {
       return res.status(403).json({
         success: false,
         message: "Account is deactivated. Please contact administrator.",
       });
     }
 
-    // Verify password
-    // Method 1: If you have comparePassword method in your Admin model
-    let isPasswordValid;
-    if (typeof admin.comparePassword === "function") {
-      isPasswordValid = await admin.comparePassword(password);
-    } else {
-      // Method 2: Direct bcrypt comparison
-      isPasswordValid = await bcrypt.compare(password, admin.password);
-    }
+    // Verify password - Direct string comparison since you're not using bcrypt
+    const isPasswordValid = admin.password === password;
+    console.log(`Password validation for ${admin.email}: ${isPasswordValid}`);
+    console.log(`Stored password: ${admin.password}`);
+    console.log(`Provided password: ${password}`);
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -463,7 +463,6 @@ const loginAdmin = async (req, res) => {
 
     // Check if user is already logged in (optional check)
     if (req.session && req.session.userId) {
-      // User is already logged in, but we can allow re-login
       console.log(
         `Admin ${admin.email} is already logged in, creating new session`
       );
