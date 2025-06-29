@@ -1,10 +1,11 @@
-import { User, Department } from "../models/index.js";
+import { User, Department, Author } from "../models/index.js";
 
 const getPrivateDataCounts = async (req, res) => {
   try {
-    const [userCount, departmentCount] = await Promise.all([
+    const [userCount, departmentCount, authorCount] = await Promise.all([
       User.countDocuments(),
       Department.countDocuments(),
+      Author.countDocuments(),
     ]);
     res.status(200).json({
       success: true,
@@ -12,12 +13,13 @@ const getPrivateDataCounts = async (req, res) => {
       counts: {
         users: userCount,
         departments: departmentCount,
+        authors: authorCount,
       },
     });
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error getting number of users",
+      message: "Error getting number of users, departments, and authors",
       error: error.message,
     });
   }
