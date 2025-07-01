@@ -41,8 +41,8 @@ router.post("/admin/login", loginAdmin);
 
 // Protected routes (require authentication)
 router.post("/publication", upload.single("pdfFile"), registerPublication);
-router.post("/author", registerAuthor);
-router.post("/department", registerDepartment);
+router.post("/register/author", registerAuthor);
+router.post("/register/department", registerDepartment);
 router.get("/admin/logout", requireAuthentication, logoutAdmin);
 
 // Data retrieval routes
