@@ -34,7 +34,7 @@ import {
 const router = Router();
 
 // Public routes (no authentication required)
-router.post("/register", requireAdmin, registerUser);
+router.post("/register", registerUser);
 router.post("/admin/register", requireAdmin, registerAdmin);
 router.post("/admin/login", loginAdmin);
 
@@ -58,17 +58,12 @@ router.get("/publications/author-search", searchByAuthor); // Author search
 router.get("/publications/:id/related", getRelatedPublications); // Related publications
 
 //private data retrieval routes
-router.get("/private-data/counts", requireAdmin, getPrivateDataCounts);
-router.get("/private-data/users", requireAdmin, getUsersWithPagination);
-router.get("/private-data/search/email", requireAdmin, searchUserWithEmail);
+router.get("/private-data/counts", getPrivateDataCounts);
+router.get("/private-data/users", getUsersWithPagination);
+router.get("/private-data/search/email", searchUserWithEmail);
 router.get(
   "/private-data/search/employee-id",
-  requireAdmin,
   searchUserWithEmployeeId // Fixed typo in original export
 );
-router.get(
-  "/private-data/search/fullname",
-  requireAdmin,
-  searchUserWithFullName
-);
+router.get("/private-data/search/fullname", searchUserWithFullName);
 export default router;

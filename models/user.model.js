@@ -27,8 +27,20 @@ const userSchema = new Schema(
     },
     role: {
       type: String,
-      enum: ["admin", "user", "HOD", "author", "super-admin"], // ← added "super-admin" here
-      default: "user",
+      enum: [
+        "Associate Professor",
+        "Assistant Professor",
+        "Lecturer",
+        "Researcher",
+        "admin",
+        "Technical Staff",
+        "super-admin",
+      ],
+      default: "Researcher",
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
   },
   { timestamps: true }
