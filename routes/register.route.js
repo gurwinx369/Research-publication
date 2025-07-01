@@ -35,12 +35,12 @@ import {
 const router = Router();
 
 // Public routes (no authentication required)
-router.post("/register", registerUser);
-router.post("/admin/register", requireAdmin, registerAdmin);
 router.post("/admin/login", loginAdmin);
 router.post("/publication", upload.single("pdfFile"), registerPublication);
 
 // Protected routes (require authentication)
+router.post("/register", requireAdmin, registerUser);
+router.post("/register/admin", requireAdmin, registerAdmin);
 router.post("/register/author", requireAuthentication, registerAuthor);
 router.post("/register/department", requireAuthentication, registerDepartment);
 router.get("/admin/logout", requireAuthentication, logoutAdmin);
