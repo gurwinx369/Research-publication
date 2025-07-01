@@ -315,10 +315,31 @@ const searchUserWithEmployeeId = async (req, res) => {
   }
 };
 
+const getDepartments = async (req, res) => {
+  try {
+    const departments = await Department.find().lean();
+    if (!departments || departments.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No departments found",
+      });
+    }
+    console.log("get departments", departments);
+    res.status(200).json({
+      success: true,
+      message: "Departments retrieved successfully",
+      data: departments,
+    });
+  } catch (error) {
+    console.log("Error retrieving departments", error);
+    throw new Error("Error retrieving departments: ", error.message);
+  }
+};
 export {
   searchUserWithEmail,
   searchUserWithEmployeeId, // Fixed typo in original export
   searchUserWithFullName,
   getPrivateDataCounts,
   getUsersWithPagination,
+  getDepartments,
 };

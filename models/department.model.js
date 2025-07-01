@@ -23,7 +23,7 @@ const departmentSchema = new mongoose.Schema(
     },
     head: {
       type: String, // Department head name
-      required: false,
+      required: true,
     },
     description: String,
     isActive: {

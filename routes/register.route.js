@@ -21,6 +21,7 @@ import {
   searchUserWithFullName,
   getPrivateDataCounts,
   getUsersWithPagination,
+  getDepartments,
 } from "../controllers/privateData.controller.js";
 import { Router } from "express";
 
@@ -60,6 +61,7 @@ router.get("/publications/:id/related", getRelatedPublications); // Related publ
 //private data retrieval routes
 router.get("/private-data/counts", getPrivateDataCounts);
 router.get("/private-data/users", getUsersWithPagination);
+router.get("/private-data/departments", getDepartments);
 router.get("/private-data/search/email", searchUserWithEmail);
 router.get(
   "/private-data/search/employee-id",
