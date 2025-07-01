@@ -45,11 +45,6 @@ router.post("/author", registerAuthor);
 router.post("/department", registerDepartment);
 router.get("/admin/logout", requireAuthentication, logoutAdmin);
 
-// Admin-only routes
-// If you have specific admin dashboard routes, define them here:
-// router.get("/admin/dashboard", requireAdmin, getDashboard);
-// router.get("/admin/users", requireAdmin, getUsers);
-
 // Data retrieval routes
 router.get("/counts", getAllCounts); //deaprtment, publication, users count
 router.get("/publications", getPublicationsPagination);
