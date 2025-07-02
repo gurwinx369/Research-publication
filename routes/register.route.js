@@ -39,8 +39,8 @@ router.post("/admin/login", loginAdmin);
 router.post("/publication", upload.single("pdfFile"), registerPublication);
 
 // Protected routes (require authentication)
-router.post("/register", requireAdmin, registerUser);
-router.post("/register/admin", requireAdmin, registerAdmin);
+router.post("/register", requireAuthentication, registerUser);
+router.post("/register/admin", requireAuthentication, registerAdmin);
 router.post("/register/author", requireAuthentication, registerAuthor);
 router.post("/register/department", requireAuthentication, registerDepartment);
 router.get("/admin/logout", requireAuthentication, logoutAdmin);
@@ -54,18 +54,26 @@ router.get("/publications/author-search", searchByAuthor); // Author search
 router.get("/publications/:id/related", getRelatedPublications); // Related publications
 
 //private data retrieval routes
-router.get("/private-data/counts", requireAdmin, getPrivateDataCounts);
-router.get("/private-data/users", requireAdmin, getUsersWithPagination);
-router.get("/private-data/departments", requireAdmin, getDepartments);
-router.get("/private-data/search/email", requireAdmin, searchUserWithEmail);
+router.get("/private-data/counts", requireAuthentication, getPrivateDataCounts);
+router.get(
+  "/private-data/users",
+  requireAuthentication,
+  getUsersWithPagination
+);
+router.get("/private-data/departments", requireAuthentication, getDepartments);
+router.get(
+  "/private-data/search/email",
+  requireAuthentication,
+  searchUserWithEmail
+);
 router.get(
   "/private-data/search/employee-id",
-  requireAdmin,
+  requireAuthentication,
   searchUserWithEmployeeId
 );
 router.get(
   "/private-data/search/fullname",
-  requireAdmin,
+  requireAuthentication,
   searchUserWithFullName
 );
 export default router;
