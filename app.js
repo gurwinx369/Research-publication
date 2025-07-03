@@ -6,8 +6,18 @@ import MongoStore from "connect-mongo";
 
 const app = express();
 
+// FIXED: Specific origin instead of wildcard when using credentials
+app.use(
+  cors({
+    origin: true,
+    credentials: true, // This allows cookies to be sent
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    optionsSuccessStatus: 200, // For legacy browser support
+  })
+);
+
 // Basic middleware
-app.use(cors({ origin: "*", credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -18,17 +28,18 @@ app.use(
     resave: false,
     saveUninitialized: false,
     store: MongoStore.create({
-      mongoUrl: process.env.MONGO_URI || "Mongo uri not correct", // FIXED: use MONGO_URI
+      mongoUrl: process.env.MONGO_URI || "Mongo uri not correct",
       ttl: 24 * 60 * 60, // Session TTL in seconds (24 hours)
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production", // HTTPS only in production
       httpOnly: true, // Prevent XSS attacks
       maxAge: 24 * 60 * 60 * 1000, // 24 hours in milliseconds
-      sameSite: "lax", // CSRF protection
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // FIXED: 'none' for production cross-origin
     },
   })
 );
+
 // Routes - AFTER session middleware
 app.use("/api", userRouter);
 

@@ -51,7 +51,7 @@ const authorSchema = new Schema(
         validator: Number.isInteger,
         message: "Author order must be an integer",
       },
-    },
+    }, 
   },
   {
     timestamps: true,

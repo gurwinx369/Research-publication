@@ -30,11 +30,9 @@ const userSchema = new Schema(
       enum: [
         "Associate Professor",
         "Assistant Professor",
-        "Lecturer",
+        "Professor",
         "Researcher",
-        "admin",
         "Technical Staff",
-        "super-admin",
       ],
       default: "Researcher",
     },
