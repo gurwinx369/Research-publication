@@ -387,10 +387,10 @@ const getAdminsWithPagination = async (req, res) => {
     sortOptions[sortField] = sortOrder;
 
     // Get total count for pagination info
-    const totalUsers = await User.countDocuments();
+    const totalAdmins = await Admin.countDocuments();
 
-    // Fetch users with pagination and sorting
-    const users = await User.find({})
+    // Fetch admins with pagination and sorting
+    const admins = await Admin.find({})
       .select("-password") // Exclude password field
       .sort(sortOptions)
       .skip(skip)
@@ -401,12 +401,12 @@ const getAdminsWithPagination = async (req, res) => {
       success: true,
       message: "Users retrieved successfully",
       data: {
-        users,
+        admins,
         pagination: {
           currentPage: pageNum,
-          totalPages: Math.ceil(totalUsers / limitNum),
+          totalPages: Math.ceil(totalAdmins / limitNum),
           totalUsers,
-          hasNextPage: pageNum < Math.ceil(totalUsers / limitNum),
+          hasNextPage: pageNum < Math.ceil(totalAdmins / limitNum),
           hasPrevPage: pageNum > 1,
         },
       },

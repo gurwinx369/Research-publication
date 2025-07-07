@@ -21,6 +21,7 @@ import {
   searchUserWithFullName,
   getPrivateDataCounts,
   getUsersWithPagination,
+  getAdminsWithPagination,
   getDepartments,
   getAdmins,
 } from "../controllers/privateData.controller.js";
@@ -60,6 +61,11 @@ router.get(
   "/private-data/users",
   requireAuthentication,
   getUsersWithPagination
+);
+router.get(
+  "/private-data/admins",
+  requireAuthentication,
+  getAdminsWithPagination
 );
 router.get("/private-data/departments", requireAuthentication, getDepartments);
 router.get("/private-data/admins", requireAuthentication, getAdmins);
