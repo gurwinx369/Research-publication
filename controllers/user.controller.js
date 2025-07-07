@@ -1,4 +1,3 @@
-import bcrypt from "bcrypt";
 import { UploadOnCloudinary } from "../utils/cloudinary.js";
 import {
   User,
@@ -33,7 +32,7 @@ const registerUser = async (req, res) => {
 
     const newUser = new User({
       employee_id,
-      password, // Note: Password should be hashed before saving
+      password, 
       email,
       fullname: fullname.trim(), // Remove extra whitespace
       role: role || "user", // Default to 'user' if not provided
