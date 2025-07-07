@@ -335,9 +335,9 @@ const getDepartments = async (req, res) => {
     throw new Error("Error retrieving departments: ", error.message);
   }
 };
-const getAdmins = async (req, res) => {
+const getAdminCounts = async (req, res) => {
   try {
-    const admins = await Admin.find().lean();
+    const admins = await Admin.countDocuments().lean();
     if (!admins || admins.length === 0) {
       return res.status(404).json({
         success: false,
@@ -347,85 +347,21 @@ const getAdmins = async (req, res) => {
     console.log("get admins", admins);
     res.status(200).json({
       success: true,
-      message: "admins retrieved successfully",
-      data: admins,
+      message: "admin counts retrieved successfully",
+      adminCounts: admins,
     });
   } catch (error) {
-    console.log("Error retrieving admins", error);
-    throw new Error("Error retrieving admins: ", error.message);
+    console.log("Error retrieving admin counts", error);
+    throw new Error("Error retrieving admin counts: ", error.message);
   }
 };
-const getAdminsWithPagination = async (req, res) => {
-  try {
-    const {
-      page = 1,
-      limit = 10,
-      sortBy = "createdAt",
-      order = "desc",
-    } = req.query;
 
-    console.log("Query parameters:", req.query);
-
-    // Convert to numbers and validate
-    const pageNum = Math.max(1, parseInt(page));
-    const limitNum = Math.max(1, Math.min(100, parseInt(limit))); // Cap at 100
-    const skip = (pageNum - 1) * limitNum;
-
-    // Build sort object
-    const sortOrder = order === "asc" ? 1 : -1;
-    const sortOptions = {};
-
-    // Validate sortBy field
-    const allowedSortFields = [
-      "createdAt",
-      "updatedAt",
-      "fullname",
-      "email",
-      "employee_id",
-    ];
-    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
-    sortOptions[sortField] = sortOrder;
-
-    // Get total count for pagination info
-    const totalAdmins = await Admin.countDocuments();
-
-    // Fetch admins with pagination and sorting
-    const admins = await Admin.find({})
-      .select("-password") // Exclude password field
-      .sort(sortOptions)
-      .skip(skip)
-      .limit(limitNum)
-      .lean(); // Use lean() for better performance
-
-    res.status(200).json({
-      success: true,
-      message: "Users retrieved successfully",
-      data: {
-        admins,
-        pagination: {
-          currentPage: pageNum,
-          totalPages: Math.ceil(totalAdmins / limitNum),
-          totalUsers,
-          hasNextPage: pageNum < Math.ceil(totalAdmins / limitNum),
-          hasPrevPage: pageNum > 1,
-        },
-      },
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error retrieving users with pagination",
-      error: error.message,
-    });
-  }
-};
 export {
   searchUserWithEmail,
   searchUserWithEmployeeId, // Fixed typo in original export
   searchUserWithFullName,
   getPrivateDataCounts,
   getUsersWithPagination,
-  getAdminsWithPagination,
   getDepartments,
-  getAdmins,
+  getAdminCounts,
 };
