@@ -236,10 +236,11 @@ const registerDepartment = async (req, res) => {
 // Enhanced admin registration controller with automatic session creation
 const registerAdmin = async (req, res) => {
   try {
-    const { fullname, email, password, role, phone } = req.body;
+    const { employee_id, fullname, email, password, role, phone } = req.body;
 
     // Keep your original logging for debugging (remove in production)
     console.log("Admin registration attempt:", {
+      employee_id,
       fullname,
       email: email ? email.substring(0, 3) + "***" : undefined, // Partially hide email in logs
       role,
@@ -254,6 +255,7 @@ const registerAdmin = async (req, res) => {
     if (!password) missingFields.push("password");
     if (!role) missingFields.push("role");
     if (!phone) missingFields.push("phone");
+    if (!employee_id) missingFields.push("employee_id");
 
     if (missingFields.length > 0) {
       return res.status(400).json({
@@ -302,6 +304,7 @@ const registerAdmin = async (req, res) => {
 
     // Create new admin instance with explicit isActive flag
     const newAdmin = new Admin({
+      employee_id,
       fullname: fullname.trim(), // Remove extra whitespace
       email: email.toLowerCase().trim(), // Normalize email
       password, // Your model should handle hashing in pre-save hook
