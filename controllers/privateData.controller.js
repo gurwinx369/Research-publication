@@ -355,12 +355,77 @@ const getAdmins = async (req, res) => {
     throw new Error("Error retrieving admins: ", error.message);
   }
 };
+const getAdminsWithPagination = async (req, res) => {
+  try {
+    const {
+      page = 1,
+      limit = 10,
+      sortBy = "createdAt",
+      order = "desc",
+    } = req.query;
+
+    console.log("Query parameters:", req.query);
+
+    // Convert to numbers and validate
+    const pageNum = Math.max(1, parseInt(page));
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit))); // Cap at 100
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build sort object
+    const sortOrder = order === "asc" ? 1 : -1;
+    const sortOptions = {};
+
+    // Validate sortBy field
+    const allowedSortFields = [
+      "createdAt",
+      "updatedAt",
+      "fullname",
+      "email",
+      "employee_id",
+    ];
+    const sortField = allowedSortFields.includes(sortBy) ? sortBy : "createdAt";
+    sortOptions[sortField] = sortOrder;
+
+    // Get total count for pagination info
+    const totalUsers = await User.countDocuments();
+
+    // Fetch users with pagination and sorting
+    const users = await User.find({})
+      .select("-password") // Exclude password field
+      .sort(sortOptions)
+      .skip(skip)
+      .limit(limitNum)
+      .lean(); // Use lean() for better performance
+
+    res.status(200).json({
+      success: true,
+      message: "Users retrieved successfully",
+      data: {
+        users,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalUsers / limitNum),
+          totalUsers,
+          hasNextPage: pageNum < Math.ceil(totalUsers / limitNum),
+          hasPrevPage: pageNum > 1,
+        },
+      },
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error retrieving users with pagination",
+      error: error.message,
+    });
+  }
+};
 export {
   searchUserWithEmail,
   searchUserWithEmployeeId, // Fixed typo in original export
   searchUserWithFullName,
   getPrivateDataCounts,
   getUsersWithPagination,
+  getAdminsWithPagination,
   getDepartments,
   getAdmins,
 };
