@@ -1,4 +1,4 @@
-import { User, Department, Author } from "../models/index.js";
+import { User, Department, Author, Admin } from "../models/index.js";
 
 const getPrivateDataCounts = async (req, res) => {
   try {
@@ -335,6 +335,26 @@ const getDepartments = async (req, res) => {
     throw new Error("Error retrieving departments: ", error.message);
   }
 };
+const getAdmins = async (req, res) => {
+  try {
+    const admins = await Admin.find().lean();
+    if (!admins || admins.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "No admins found",
+      });
+    }
+    console.log("get admins", admins);
+    res.status(200).json({
+      success: true,
+      message: "admins retrieved successfully",
+      data: admins,
+    });
+  } catch (error) {
+    console.log("Error retrieving admins", error);
+    throw new Error("Error retrieving admins: ", error.message);
+  }
+};
 export {
   searchUserWithEmail,
   searchUserWithEmployeeId, // Fixed typo in original export
@@ -342,4 +362,5 @@ export {
   getPrivateDataCounts,
   getUsersWithPagination,
   getDepartments,
+  getAdmins,
 };

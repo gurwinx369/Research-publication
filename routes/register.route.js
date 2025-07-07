@@ -22,6 +22,7 @@ import {
   getPrivateDataCounts,
   getUsersWithPagination,
   getDepartments,
+  getAdmins,
 } from "../controllers/privateData.controller.js";
 import { Router } from "express";
 
@@ -61,6 +62,7 @@ router.get(
   getUsersWithPagination
 );
 router.get("/private-data/departments", requireAuthentication, getDepartments);
+router.get("/private-data/admins", requireAuthentication, getAdmins);
 router.get(
   "/private-data/search/email",
   requireAuthentication,
