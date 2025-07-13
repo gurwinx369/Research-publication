@@ -722,7 +722,7 @@ export {
 // 1. DELETE UNASSIGNED AUTHOR ONLY
 const deleteUnassignedAuthor = async (req, res) => {
   try {
-    const { employee_id } = req.params;
+    const { employee_id } = req.body;
 
     if (!employee_id) {
       return res.status(400).json({
