@@ -1,7 +1,9 @@
 import {
-  registerUser,
   registerPublication,
   registerAuthor,
+  assignAuthorToPublication,
+  getAuthorPublications,
+  getUnassignedAuthors,
   registerDepartment,
   registerAdmin,
   loginAdmin,
@@ -16,13 +18,13 @@ import {
   getRelatedPublications,
 } from "../controllers/data.controller.js";
 import {
-  searchUserWithEmail,
-  searchUserWithEmployeeId, // Fixed typo in original export
-  searchUserWithFullName,
+  searchAuthorWithEmail,
+  searchAuthorWithEmployeeId, // Fixed typo in original export
+  searchAuthorWithFullName,
   getPrivateDataCounts,
-  getUsersWithPagination,
+  getAuthorsWithPagination,
   getDepartments,
-  getAdminCounts
+  getAdminCounts,
 } from "../controllers/privateData.controller.js";
 import { Router } from "express";
 
@@ -38,16 +40,21 @@ const router = Router();
 // Public routes (no authentication required)
 router.post("/admin/login", loginAdmin);
 router.post("/publication", upload.single("pdfFile"), registerPublication);
-
+router.post("/authors/assign-publication", assignAuthorToPublication);
 // Protected routes (require authentication)
-router.post("/register", requireAuthentication, registerUser);
 router.post("/register/admin", requireAuthentication, registerAdmin);
-router.post("/register/author", requireAuthentication, registerAuthor);
-router.post("/register/department", requireAuthentication, registerDepartment);
+router.post("/register/author", registerAuthor);
+router.post("/register/department", registerDepartment);
 router.get("/admin/logout", requireAuthentication, logoutAdmin);
 
 // Data retrieval routes
 router.get("/counts", getAllCounts); //deaprtment, publication, users count
+router.get("/authors/unassigned", requireAuthentication, getUnassignedAuthors);
+router.get(
+  "/authors/publications",
+  requireAuthentication,
+  getAuthorPublications
+); // Get publications for a specific author
 router.get("/publications", getPublicationsPagination);
 router.get("/publications/search", searchPublications); // Advanced search
 router.get("/publications/text-search", simpleTextSearch); // Simple text search
@@ -59,23 +66,37 @@ router.get("/private-data/counts", requireAuthentication, getPrivateDataCounts);
 router.get(
   "/private-data/users",
   requireAuthentication,
-  getUsersWithPagination
+  getAuthorsWithPagination
 );
 router.get("/private-data/departments", requireAuthentication, getDepartments);
 router.get("/private-data/admins", getAdminCounts);
 router.get(
   "/private-data/search/email",
   requireAuthentication,
-  searchUserWithEmail
+  searchAuthorWithEmail
 );
 router.get(
   "/private-data/search/employee-id",
   requireAuthentication,
-  searchUserWithEmployeeId
+  searchAuthorWithEmployeeId
 );
 router.get(
   "/private-data/search/fullname",
   requireAuthentication,
-  searchUserWithFullName
+  searchAuthorWithFullName
 );
+
+// DELTETION ROUTES
+import {
+  deleteUnassignedAuthor,
+  deleteAdmin,
+  deleteDepartment,
+  deletePublication,
+} from "../controllers/user.controller.js";
+
+// delete unassigned author
+router.post("/delete/author/unassigned", deleteUnassignedAuthor);
+router.post("/delete/admin", deleteAdmin);
+router.post("/delete/department", deleteDepartment);
+router.post("/delete/publication", deletePublication);
 export default router;

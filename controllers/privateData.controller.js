@@ -1,17 +1,15 @@
-import { User, Department, Author, Admin } from "../models/index.js";
+import { Department, Author, Admin } from "../models/index.js";
 
 const getPrivateDataCounts = async (req, res) => {
   try {
-    const [userCount, departmentCount, authorCount] = await Promise.all([
-      User.countDocuments(),
+    const [departmentCount, authorCount] = await Promise.all([
       Department.countDocuments(),
       Author.countDocuments(),
     ]);
     res.status(200).json({
       success: true,
-      message: "Successfully retrieved Department and User count.",
+      message: "Successfully retrieved Department and Author count.",
       counts: {
-        users: userCount,
         departments: departmentCount,
         authors: authorCount,
       },
@@ -19,13 +17,13 @@ const getPrivateDataCounts = async (req, res) => {
   } catch (error) {
     res.status(500).json({
       success: false,
-      message: "Error getting number of users, departments, and authors",
+      message: "Error getting number of departments, and authors",
       error: error.message,
     });
   }
 };
 
-const getUsersWithPagination = async (req, res) => {
+const getAuthorsWithPagination = async (req, res) => {
   try {
     const {
       page = 1,
@@ -57,10 +55,10 @@ const getUsersWithPagination = async (req, res) => {
     sortOptions[sortField] = sortOrder;
 
     // Get total count for pagination info
-    const totalUsers = await User.countDocuments();
+    const totalUsers = await Author.countDocuments();
 
     // Fetch users with pagination and sorting
-    const users = await User.find({})
+    const users = await Author.find({})
       .select("-password") // Exclude password field
       .sort(sortOptions)
       .skip(skip)
@@ -69,7 +67,7 @@ const getUsersWithPagination = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Users retrieved successfully",
+      message: "Authors retrieved successfully",
       data: {
         users,
         pagination: {
@@ -90,7 +88,7 @@ const getUsersWithPagination = async (req, res) => {
   }
 };
 
-const searchUserWithFullName = async (req, res) => {
+const searchAuthorWithFullName = async (req, res) => {
   try {
     const {
       fullname,
@@ -131,10 +129,10 @@ const searchUserWithFullName = async (req, res) => {
     };
 
     // Get total count for pagination
-    const totalUsers = await User.countDocuments(searchQuery);
+    const totalUsers = await Author.countDocuments(searchQuery);
 
     // Search users
-    const users = await User.find(searchQuery)
+    const users = await Author.find(searchQuery)
       .select("-password")
       .sort(sortOptions)
       .skip(skip)
@@ -143,7 +141,7 @@ const searchUserWithFullName = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Found ${totalUsers} user(s) matching "${fullname}"`,
+      message: `Found ${totalUsers} author(s) matching "${fullname}"`,
       data: {
         users,
         searchTerm: fullname,
@@ -165,7 +163,7 @@ const searchUserWithFullName = async (req, res) => {
   }
 };
 
-const searchUserWithEmail = async (req, res) => {
+const searchAuthorWithEmail = async (req, res) => {
   try {
     const {
       email,
@@ -206,10 +204,10 @@ const searchUserWithEmail = async (req, res) => {
     };
 
     // Get total count for pagination
-    const totalUsers = await User.countDocuments(searchQuery);
+    const totalUsers = await Author.countDocuments(searchQuery);
 
     // Search users
-    const users = await User.find(searchQuery)
+    const users = await Author.find(searchQuery)
       .select("-password")
       .sort(sortOptions)
       .skip(skip)
@@ -218,7 +216,7 @@ const searchUserWithEmail = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Found ${totalUsers} user(s) matching email "${email}"`,
+      message: `Found ${totalUsers} author(s) matching email "${email}"`,
       data: {
         users,
         searchTerm: email,
@@ -240,7 +238,7 @@ const searchUserWithEmail = async (req, res) => {
   }
 };
 
-const searchUserWithEmployeeId = async (req, res) => {
+const searchAuthorWithEmployeeId = async (req, res) => {
   try {
     const {
       employee_id,
@@ -281,10 +279,10 @@ const searchUserWithEmployeeId = async (req, res) => {
     };
 
     // Get total count for pagination
-    const totalUsers = await User.countDocuments(searchQuery);
+    const totalUsers = await Author.countDocuments(searchQuery);
 
     // Search users
-    const users = await User.find(searchQuery)
+    const users = await Author.find(searchQuery)
       .select("-password")
       .sort(sortOptions)
       .skip(skip)
@@ -293,7 +291,7 @@ const searchUserWithEmployeeId = async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: `Found ${totalUsers} user(s) matching employee ID "${employee_id}"`,
+      message: `Found ${totalUsers} author(s) matching employee ID "${employee_id}"`,
       data: {
         users,
         searchTerm: employee_id,
@@ -357,11 +355,11 @@ const getAdminCounts = async (req, res) => {
 };
 
 export {
-  searchUserWithEmail,
-  searchUserWithEmployeeId, // Fixed typo in original export
-  searchUserWithFullName,
+  searchAuthorWithEmail,
+  searchAuthorWithEmployeeId, // Fixed typo in original export
+  searchAuthorWithFullName,
   getPrivateDataCounts,
-  getUsersWithPagination,
+  getAuthorsWithPagination,
   getDepartments,
   getAdminCounts,
 };

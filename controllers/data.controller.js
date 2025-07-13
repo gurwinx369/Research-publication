@@ -1,12 +1,12 @@
-import { Publication, User, Department } from "../models/index.js";
+import { Publication, Author, Department } from "../models/index.js";
 
 //Get all counts in a single endpoint (more efficient)
 const getAllCounts = async (req, res) => {
   try {
     // Execute all count queries simultaneously using Promise.all
-    const [publicationCount, userCount, departmentCount] = await Promise.all([
+    const [publicationCount, authorCount, departmentCount] = await Promise.all([
       Publication.countDocuments(),
-      User.countDocuments(),
+      Author.countDocuments(),
       Department.countDocuments(),
     ]);
 
@@ -14,7 +14,7 @@ const getAllCounts = async (req, res) => {
       counts: {
         success: true,
         publications: publicationCount,
-        users: userCount,
+        authors: authorCount,
         departments: departmentCount,
       },
       message: "All counts retrieved successfully",

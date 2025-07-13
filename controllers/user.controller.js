@@ -1,52 +1,6 @@
 import { UploadOnCloudinary } from "../utils/cloudinary.js";
-import {
-  User,
-  Author,
-  Department,
-  Publication,
-  Admin,
-} from "../models/index.js";
+import { Author, Department, Publication, Admin } from "../models/index.js";
 import fs from "fs"; // For cleaning up temp files
-
-const registerUser = async (req, res) => {
-  const { employee_id, password, email, role, fullname } = req.body;
-  console.log({
-    employee_id,
-    password,
-    email,
-    role,
-    fullname,
-  });
-
-  if (!employee_id || !password || !email || !fullname || !role) {
-    return res
-      .status(400)
-      .json({ message: "Please provide all required fields" });
-  }
-
-  try {
-    const existingUser = await User.findOne({ employee_id });
-    if (existingUser) {
-      return res.status(400).json({ message: "User already exists" });
-    }
-
-    const newUser = new User({
-      employee_id,
-      password, 
-      email,
-      fullname: fullname.trim(), // Remove extra whitespace
-      role: role || "user", // Default to 'user' if not provided
-    });
-
-    await newUser.save();
-    return res
-      .status(201)
-      .json({ message: "User registered successfully", user: newUser });
-  } catch (error) {
-    console.error("Error registering user:", error);
-    return res.status(500).json({ message: "Internal server error" });
-  }
-};
 
 const registerPublication = async (req, res) => {
   const { title, abstract, publication_date, isbn, department } = req.body;
@@ -144,53 +98,169 @@ const registerPublication = async (req, res) => {
     });
   }
 };
-
 const registerAuthor = async (req, res) => {
-  const {
-    employee_id,
-    author_name,
-    email,
-    department,
-    publication_id,
-    author_order,
-  } = req.body;
-  console.log({
-    employee_id,
-    author_name,
-    email,
-    department,
-    publication_id,
-    author_order,
-  });
+  const { employee_id, author_name, email, password, role, department } =
+    req.body;
+
   if (
     !employee_id ||
     !author_name ||
     !email ||
     !department ||
-    !publication_id ||
-    !author_order
-  )
-    return res
-      .status(400)
-      .json({ message: "Please provide all required fields" });
+    !password ||
+    !role
+  ) {
+    return res.status(400).json({
+      message: "Please provide all required fields for registration",
+    });
+  }
+
   try {
+    // Check if author already exists
     const existingAuthor = await Author.findOne({ employee_id });
-    if (existingAuthor)
+    if (existingAuthor) {
       return res.status(400).json({ message: "Author already exists" });
+    }
+
     const newAuthor = new Author({
       employee_id,
       author_name,
       email,
+      password,
+      role,
       department,
+      // publication_id and author_order will be null
+    });
+
+    await newAuthor.save();
+
+    return res.status(201).json({
+      message: "Author registered successfully",
+      author: newAuthor,
+    });
+  } catch (error) {
+    console.error("Error registering author:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// 2. ASSIGN AUTHOR TO PUBLICATION
+const assignAuthorToPublication = async (req, res) => {
+  const {
+    employee_id,
+    publication_id,
+    author_order,
+    // Optional: allow updating author details during assignment
+    author_name,
+    email,
+    role,
+    department,
+  } = req.body;
+
+  if (!employee_id || !publication_id || !author_order) {
+    return res.status(400).json({
+      message: "Employee ID, Publication ID, and Author Order are required",
+    });
+  }
+
+  try {
+    // Check if author exists in the system
+    const existingAuthor = await Author.findOne({
+      employee_id,
+      publication_id: null, // Find the registered author (not assigned to publication)
+    });
+
+    if (!existingAuthor) {
+      return res.status(404).json({
+        message: "Author not found. Please register the author first.",
+      });
+    }
+
+    // Check if author is already assigned to this publication
+    const existingAssignment = await Author.findOne({
+      employee_id,
+      publication_id,
+    });
+
+    if (existingAssignment) {
+      return res.status(400).json({
+        message: "Author is already assigned to this publication",
+      });
+    }
+
+    // Check if author order is already taken
+    const existingOrder = await Author.findOne({
       publication_id,
       author_order,
     });
-    await newAuthor.save();
-    return res
-      .status(201)
-      .json({ message: "Author registered successfully", author: newAuthor });
+
+    if (existingOrder) {
+      return res.status(400).json({
+        message: `Author order ${author_order} is already taken for this publication`,
+      });
+    }
+
+    // Create new author-publication assignment (duplicate the author record)
+    const authorAssignment = new Author({
+      employee_id: existingAuthor.employee_id,
+      author_name: author_name || existingAuthor.author_name,
+      email: email || existingAuthor.email,
+      password: existingAuthor.password,
+      role: role || existingAuthor.role,
+      department: department || existingAuthor.department,
+      publication_id,
+      author_order,
+      isActive: true,
+    });
+
+    await authorAssignment.save();
+
+    return res.status(201).json({
+      message: "Author assigned to publication successfully",
+      assignment: authorAssignment,
+    });
   } catch (error) {
-    console.error("Error registering author:", error);
+    console.error("Error assigning author to publication:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// 3. GET UNASSIGNED AUTHORS
+const getUnassignedAuthors = async (req, res) => {
+  try {
+    const unassignedAuthors = await Author.find({
+      publication_id: null,
+      isActive: true,
+    }).select("employee_id author_name email role department");
+
+    return res.status(200).json({
+      message: "Unassigned authors retrieved successfully",
+      authors: unassignedAuthors,
+    });
+  } catch (error) {
+    console.error("Error fetching unassigned authors:", error);
+    return res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+// 4. GET AUTHOR'S PUBLICATIONS
+const getAuthorPublications = async (req, res) => {
+  const { employee_id } = req.params;
+
+  try {
+    const authorPublications = await Author.find({
+      employee_id,
+      publication_id: { $ne: null }, // Only get publication assignments
+    })
+      .populate("publication_id", "title journal_name publication_date")
+      .select("publication_id author_order role");
+
+    return res.status(200).json({
+      message: "Author publications retrieved successfully",
+      publications: authorPublications,
+    });
+  } catch (error) {
+    console.error("Error fetching author publications:", error);
     return res.status(500).json({ message: "Internal server error" });
   }
 };
@@ -452,9 +522,9 @@ const loginAdmin = async (req, res) => {
 
     // Verify password - Direct string comparison since you're not using bcrypt
     const isPasswordValid = admin.password === password;
-    console.log(`Password validation for ${admin.email}: ${isPasswordValid}`);
-    console.log(`Stored password: ${admin.password}`);
-    console.log(`Provided password: ${password}`);
+    // console.log(`Password validation for ${admin.email}: ${isPasswordValid}`);
+    //  console.log(`Stored password: ${admin.password}`);
+    //  console.log(`Provided password: ${password}`);
 
     if (!isPasswordValid) {
       return res.status(401).json({
@@ -637,11 +707,292 @@ const logoutAdmin = async (req, res) => {
 };
 
 export {
-  registerUser,
   registerPublication,
   registerAuthor,
+  assignAuthorToPublication,
+  getAuthorPublications,
+  getUnassignedAuthors,
   registerDepartment,
   registerAdmin,
   loginAdmin,
   logoutAdmin,
+};
+// DELETE ROUTE CONTROLLERS
+
+// 1. DELETE UNASSIGNED AUTHOR ONLY
+const deleteUnassignedAuthor = async (req, res) => {
+  try {
+    const { employee_id } = req.params;
+
+    if (!employee_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Employee ID is required",
+      });
+    }
+
+    // Find only unassigned authors (publication_id is null)
+    const author = await Author.findOne({
+      employee_id,
+      publication_id: null, // Only unassigned authors
+    });
+
+    if (!author) {
+      return res.status(404).json({
+        success: false,
+        message: "Unassigned author not found",
+      });
+    }
+
+    // Check if author has any publication assignments
+    const hasAssignments = await Author.countDocuments({
+      employee_id,
+      publication_id: { $ne: null },
+    });
+
+    if (hasAssignments > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Cannot delete author with existing publication assignments. Remove assignments first.",
+        assignmentCount: hasAssignments,
+      });
+    }
+
+    await Author.findByIdAndDelete(author._id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Unassigned author deleted successfully",
+      deletedAuthor: {
+        employee_id: author.employee_id,
+        author_name: author.author_name,
+        email: author.email,
+      },
+    });
+  } catch (error) {
+    console.error("Error deleting unassigned author:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      ...(process.env.NODE_ENV === "development" && { error: error.message }),
+    });
+  }
+};
+
+// 2. DELETE ADMIN
+const deleteAdmin = async (req, res) => {
+  try {
+    const { admin_id } = req.params;
+
+    if (!admin_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Admin ID is required",
+      });
+    }
+
+    // Security check - prevent admins from deleting themselves
+    if (req.session && req.session.userId === admin_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot delete your own admin account",
+      });
+    }
+
+    // Find admin
+    const admin = await Admin.findById(admin_id);
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: "Admin not found",
+      });
+    }
+
+    // Optional: Prevent deletion of super-admin (if you have role hierarchy)
+    if (admin.role === "super-admin") {
+      return res.status(403).json({
+        success: false,
+        message: "Cannot delete super-admin account",
+      });
+    }
+
+    // Store admin info for response before deletion
+    const deletedAdminInfo = {
+      employee_id: admin.employee_id,
+      fullname: admin.fullname,
+      email: admin.email,
+      role: admin.role,
+    };
+
+    await Admin.findByIdAndDelete(admin_id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Admin deleted successfully",
+      deletedAdmin: deletedAdminInfo,
+    });
+  } catch (error) {
+    console.error("Error deleting admin:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      ...(process.env.NODE_ENV === "development" && { error: error.message }),
+    });
+  }
+};
+
+// 3. DELETE DEPARTMENT
+const deleteDepartment = async (req, res) => {
+  try {
+    const { department_id } = req.params;
+
+    if (!department_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Department ID is required",
+      });
+    }
+
+    // Find department
+    const department = await Department.findById(department_id);
+    if (!department) {
+      return res.status(404).json({
+        success: false,
+        message: "Department not found",
+      });
+    }
+
+    // Check if department has associated authors
+    const authorsCount = await Author.countDocuments({
+      department: department_id,
+    });
+
+    // Check if department has associated publications
+    const publicationsCount = await Publication.countDocuments({
+      department: department_id,
+    });
+
+    if (authorsCount > 0 || publicationsCount > 0) {
+      return res.status(400).json({
+        success: false,
+        message:
+          "Cannot delete department with associated authors or publications",
+        details: {
+          authorsCount,
+          publicationsCount,
+        },
+      });
+    }
+
+    // Store department info for response
+    const deletedDepartmentInfo = {
+      name: department.name,
+      code: department.code,
+      university: department.university,
+    };
+
+    await Department.findByIdAndDelete(department_id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Department deleted successfully",
+      deletedDepartment: deletedDepartmentInfo,
+    });
+  } catch (error) {
+    console.error("Error deleting department:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      ...(process.env.NODE_ENV === "development" && { error: error.message }),
+    });
+  }
+};
+
+// 4. DELETE PUBLICATION
+const deletePublication = async (req, res) => {
+  try {
+    const { publication_id } = req.params;
+
+    if (!publication_id) {
+      return res.status(400).json({
+        success: false,
+        message: "Publication ID is required",
+      });
+    }
+
+    // Find publication
+    const publication = await Publication.findById(publication_id);
+    if (!publication) {
+      return res.status(404).json({
+        success: false,
+        message: "Publication not found",
+      });
+    }
+
+    // Check if publication has associated authors
+    const associatedAuthors = await Author.find({
+      publication_id: publication_id,
+    });
+
+    // Store publication info for response
+    const deletedPublicationInfo = {
+      title: publication.title,
+      isbn: publication.isbn,
+      publication_date: publication.publication_date,
+      file_url: publication.file_url,
+    };
+
+    // Delete associated author assignments first
+    if (associatedAuthors.length > 0) {
+      await Author.deleteMany({ publication_id: publication_id });
+      console.log(
+        `Deleted ${associatedAuthors.length} author assignments for publication ${publication_id}`
+      );
+    }
+
+    // Optional: Delete file from Cloudinary
+    if (publication.file_url) {
+      try {
+        // Extract public_id from Cloudinary URL for deletion
+        const urlParts = publication.file_url.split("/");
+        const publicIdWithExtension = urlParts[urlParts.length - 1];
+        const publicId = publicIdWithExtension.split(".")[0];
+
+        // You'll need to implement this function in your cloudinary utils
+        // await deleteFromCloudinary(publicId);
+        console.log(
+          `File deletion from Cloudinary needed for public_id: ${publicId}`
+        );
+      } catch (cloudinaryError) {
+        console.error("Error deleting file from Cloudinary:", cloudinaryError);
+        // Continue with publication deletion even if file deletion fails
+      }
+    }
+
+    // Delete the publication
+    await Publication.findByIdAndDelete(publication_id);
+
+    return res.status(200).json({
+      success: true,
+      message: "Publication deleted successfully",
+      deletedPublication: deletedPublicationInfo,
+      removedAuthorAssignments: associatedAuthors.length,
+    });
+  } catch (error) {
+    console.error("Error deleting publication:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+      ...(process.env.NODE_ENV === "development" && { error: error.message }),
+    });
+  }
+};
+
+// Export all delete functions
+export {
+  deleteUnassignedAuthor,
+  deleteAdmin,
+  deleteDepartment,
+  deletePublication,
 };
