@@ -16,6 +16,7 @@ import {
   simpleTextSearch,
   searchByAuthor,
   getRelatedPublications,
+  getAuthorByEmployeeId // New author by employee ID search for auto pick
 } from "../controllers/data.controller.js";
 import {
   searchAuthorWithEmail,
@@ -54,7 +55,9 @@ router.get(
   "/authors/publications",
   requireAuthentication,
   getAuthorPublications
-); // Get publications for a specific author
+); 
+router.get("/authors/employee-id", getAuthorByEmployeeId); // New author by employee ID search for auto pick
+// Get publications for a specific author
 router.get("/publications", getPublicationsPagination);
 router.get("/publications/search", searchPublications); // Advanced search
 router.get("/publications/text-search", simpleTextSearch); // Simple text search
