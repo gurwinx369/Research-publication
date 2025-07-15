@@ -2,24 +2,104 @@ import { UploadOnCloudinary } from "../utils/cloudinary.js";
 import { Author, Department, Publication, Admin } from "../models/index.js";
 import fs from "fs"; // For cleaning up temp files
 
+// Fixed controller with proper field mapping and publication_date
 const registerPublication = async (req, res) => {
-  const { title, abstract, publication_date, isbn, department } = req.body;
+  const {
+    employeeId,
+    authorName,
+    authorDeptId,
+    journalType,
+    journalName,
+    isbnIssn,
+    publicationMonth,
+    publicationYear,
+    title,
+    coAuthorCount,
+  } = req.body;
 
   console.log("Request body:", req.body);
   console.log("Request file:", req.file);
-  console.log({
-    title,
-    abstract,
-    publication_date,
-    isbn,
-    department,
-  });
 
-  // Remove file_url from required fields since we're getting it from file upload
-  if (!title || !abstract || !isbn || !department) {
+  // Validate required fields
+  if (
+    !employeeId ||
+    !authorName ||
+    !authorDeptId ||
+    !journalType ||
+    !journalName ||
+    !isbnIssn ||
+    !publicationMonth ||
+    !publicationYear ||
+    !title
+  ) {
+    return res.status(400).json({
+      message:
+        "Please provide all required fields: employeeId, authorName, authorDeptId, journalType, journalName, isbnIssn, publicationMonth, publicationYear, title",
+    });
+  }
+
+  // Validate journal type enum
+  const validJournalTypes = [
+    "SCI/ESCI",
+    "WEB OF SCIENCE",
+    "SCOPUS",
+    "UGC CARE",
+    "ICI",
+    "OTHER",
+  ];
+  if (!validJournalTypes.includes(journalType)) {
+    return res.status(400).json({
+      message: `Journal type must be one of: ${validJournalTypes.join(", ")}`,
+    });
+  }
+
+  // Validate publication month (1-12)
+  const monthNum = parseInt(publicationMonth);
+  if (isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
     return res
       .status(400)
-      .json({ message: "Please provide all required fields" });
+      .json({ message: "Publication month must be between 1 and 12" });
+  }
+
+  // Validate publication year
+  const yearNum = parseInt(publicationYear);
+  const currentYear = new Date().getFullYear();
+  if (isNaN(yearNum) || yearNum < 1900 || yearNum > currentYear + 1) {
+    return res.status(400).json({
+      message:
+        "Publication year must be a valid year between 1900 and current year + 1",
+    });
+  }
+
+  // Validate field lengths based on schema
+  if (authorName.length > 100) {
+    return res
+      .status(400)
+      .json({ message: "Author name must be max 100 characters" });
+  }
+  if (journalName.length > 200) {
+    return res
+      .status(400)
+      .json({ message: "Journal name must be max 200 characters" });
+  }
+  if (title.length > 200) {
+    return res
+      .status(400)
+      .json({ message: "Title must be max 200 characters" });
+  }
+
+  // Validate coAuthorCount if provided
+  if (
+    coAuthorCount !== undefined &&
+    coAuthorCount !== null &&
+    coAuthorCount !== ""
+  ) {
+    const coAuthorNum = parseInt(coAuthorCount);
+    if (isNaN(coAuthorNum) || coAuthorNum < 0) {
+      return res
+        .status(400)
+        .json({ message: "Co-author count must be a non-negative number" });
+    }
   }
 
   try {
@@ -51,13 +131,24 @@ const registerPublication = async (req, res) => {
       fileUploadResult.secure_url
     );
 
+    // Create publication_date from month and year
+    const publicationDate = new Date(yearNum, monthNum - 1, 1); // Month is 0-indexed in Date constructor
+
+    // Create new publication
     const newPublication = new Publication({
-      title,
-      abstract,
-      publication_date,
-      isbn,
+      employeeId: employeeId.trim(),
+      authorName: authorName.trim(),
+      authorDeptId,
+      department: authorDeptId, // FIX: Map authorDeptId to department
+      journalType,
+      journalName: journalName.trim(),
+      title: title.trim(),
+      publicationMonth: publicationMonth.toString(),
+      publicationYear: publicationYear.toString(),
+      publication_date: publicationDate, // FIX: Set publication_date explicitly
+      isbnIssn: isbnIssn.toUpperCase(),
       file_url: fileUploadResult.secure_url,
-      department,
+      coAuthorCount: coAuthorCount ? parseInt(coAuthorCount) : 0,
     });
 
     console.log("Attempting to save publication:", newPublication);
@@ -69,9 +160,15 @@ const registerPublication = async (req, res) => {
       fs.unlinkSync(req.file.path);
     }
 
+    // Populate related data for response
+    const populatedPublication = await Publication.findById(newPublication._id)
+      .populate("authorDeptId", "name")
+      .populate("department", "name")
+      .exec();
+
     return res.status(201).json({
       message: "Publication registered successfully",
-      publication: newPublication,
+      publication: populatedPublication,
       file_url: fileUploadResult.secure_url,
     });
   } catch (error) {
@@ -84,6 +181,14 @@ const registerPublication = async (req, res) => {
         message: "Validation error",
         errors: error.errors,
         details: error.message,
+      });
+    }
+
+    // Handle duplicate key error
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: "Publication with this ISBN/ISSN already exists",
+        error: "Duplicate ISBN/ISSN",
       });
     }
 
@@ -144,7 +249,6 @@ const registerAuthor = async (req, res) => {
   }
 };
 
-// 2. ASSIGN AUTHOR TO PUBLICATION
 const assignAuthorToPublication = async (req, res) => {
   const {
     employee_id,
@@ -164,39 +268,73 @@ const assignAuthorToPublication = async (req, res) => {
   }
 
   try {
-    // Check if author exists in the system
+    // Convert employee_id to number if it's a string
+    const employeeIdNum = Number(employee_id);
+    if (isNaN(employeeIdNum)) {
+      return res.status(400).json({
+        message: "Employee ID must be a valid number",
+      });
+    }
+
+    // Check if author exists in the system (registered author with no publication)
     const existingAuthor = await Author.findOne({
-      employee_id,
+      employee_id: employeeIdNum,
       publication_id: null, // Find the registered author (not assigned to publication)
+      isActive: true,
     });
 
     if (!existingAuthor) {
       return res.status(404).json({
-        message: "Author not found. Please register the author first.",
+        message:
+          "Author not found or not registered. Please register the author first.",
+      });
+    }
+    const publication = await Publication.findById(publication_id);
+    if (!publication) {
+      return res.status(404).json({
+        message: "Publication not found",
       });
     }
 
     // Check if author is already assigned to this publication
     const existingAssignment = await Author.findOne({
-      employee_id,
+      employee_id: employeeIdNum,
       publication_id,
+      isActive: true,
     });
 
     if (existingAssignment) {
       return res.status(400).json({
         message: "Author is already assigned to this publication",
+        existingAssignment: {
+          id: existingAssignment._id,
+          author_order: existingAssignment.author_order,
+        },
       });
     }
 
-    // Check if author order is already taken
+    // Check if author order is already taken for this publication
     const existingOrder = await Author.findOne({
       publication_id,
       author_order,
+      isActive: true,
     });
 
     if (existingOrder) {
       return res.status(400).json({
         message: `Author order ${author_order} is already taken for this publication`,
+        conflictingAuthor: {
+          id: existingOrder._id,
+          author_name: existingOrder.author_name,
+          employee_id: existingOrder.employee_id,
+        },
+      });
+    }
+
+    // Validate author order is positive integer
+    if (!Number.isInteger(author_order) || author_order < 1) {
+      return res.status(400).json({
+        message: "Author order must be a positive integer starting from 1",
       });
     }
 
@@ -205,7 +343,7 @@ const assignAuthorToPublication = async (req, res) => {
       employee_id: existingAuthor.employee_id,
       author_name: author_name || existingAuthor.author_name,
       email: email || existingAuthor.email,
-      password: existingAuthor.password,
+      password: existingAuthor.password, // Keep the same password
       role: role || existingAuthor.role,
       department: department || existingAuthor.department,
       publication_id,
@@ -213,18 +351,90 @@ const assignAuthorToPublication = async (req, res) => {
       isActive: true,
     });
 
+    console.log("Attempting to save author assignment:", {
+      employee_id: authorAssignment.employee_id,
+      publication_id: authorAssignment.publication_id,
+      author_order: authorAssignment.author_order,
+      author_name: authorAssignment.author_name,
+    });
+
     await authorAssignment.save();
+
+    console.log("Author assignment saved successfully:", authorAssignment._id);
+
+    // Populate the response with department info
+    await authorAssignment.populate("department", "name");
+    await authorAssignment.populate("publication_id", "title");
 
     return res.status(201).json({
       message: "Author assigned to publication successfully",
-      assignment: authorAssignment,
+      assignment: {
+        id: authorAssignment._id,
+        employee_id: authorAssignment.employee_id,
+        author_name: authorAssignment.author_name,
+        email: authorAssignment.email,
+        role: authorAssignment.role,
+        department: authorAssignment.department,
+        publication: authorAssignment.publication_id,
+        author_order: authorAssignment.author_order,
+        isActive: authorAssignment.isActive,
+        createdAt: authorAssignment.createdAt,
+      },
     });
   } catch (error) {
     console.error("Error assigning author to publication:", error);
-    return res.status(500).json({ message: "Internal server error" });
+
+    // Handle specific MongoDB errors
+    if (error.code === 11000) {
+      // Duplicate key error
+      const field = Object.keys(error.keyValue || {})[0];
+      let message = "Duplicate assignment detected.";
+
+      if (error.keyPattern?.employee_id && error.keyPattern?.publication_id) {
+        message = "Author is already assigned to this publication.";
+      } else if (
+        error.keyPattern?.publication_id &&
+        error.keyPattern?.author_order
+      ) {
+        message = `Author order ${error.keyValue?.author_order} is already taken for this publication.`;
+      } else if (error.keyPattern?.email) {
+        message = "An author with this email already exists.";
+      }
+
+      return res.status(400).json({
+        message,
+        error: "DUPLICATE_KEY_ERROR",
+        field,
+      });
+    }
+
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.values(error.errors).map((err) => ({
+        field: err.path,
+        message: err.message,
+      }));
+
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: validationErrors,
+      });
+    }
+
+    // Handle cast errors (invalid ObjectId)
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: `Invalid ${error.path}: ${error.value}`,
+        error: "INVALID_ID",
+      });
+    }
+
+    return res.status(500).json({
+      message: "Internal server error",
+      error: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
   }
 };
-
 // 3. GET UNASSIGNED AUTHORS
 const getUnassignedAuthors = async (req, res) => {
   try {

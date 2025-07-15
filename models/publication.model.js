@@ -1,40 +1,117 @@
 import { mongoose, Schema } from "mongoose";
-
+// Fixed schema with improved ISBN/ISSN validation
 const publicationSchema = new Schema(
   {
+    employeeId: {
+      type: String,
+      required: [true, "Employee ID is required"],
+      trim: true,
+      index: true,
+    },
+    authorName: {
+      type: String,
+      required: [true, "Author name is required"],
+      trim: true,
+      maxLength: [100, "Author name must be max 100 characters"],
+      index: true,
+    },
+    authorDeptId: {
+      type: Schema.Types.ObjectId,
+      ref: "Department",
+      required: [true, "Author department is required"],
+      index: true,
+    },
+    journalType: {
+      type: String,
+      required: [true, "Journal type is required"],
+      trim: true,
+      enum: {
+        values: [
+          "SCI/ESCI",
+          "WEB OF SCIENCE",
+          "SCOPUS",
+          "UGC CARE",
+          "ICI",
+          "OTHER",
+        ],
+        message:
+          "Journal type must be one of: SCI/ESCI, WEB OF SCIENCE, SCOPUS, UGC CARE, ICI, OTHER",
+      },
+      index: true,
+    },
+    journalName: {
+      type: String,
+      required: [true, "Journal name is required"],
+      trim: true,
+      maxLength: [200, "Journal name must be max 200 characters"],
+      index: true,
+    },
     title: {
       type: String,
       required: [true, "Title is required"],
       trim: true,
       maxLength: [200, "Title must be max 200 characters"],
-      index: true, // For text search
-    },
-    abstract: {
-      type: String,
-      required: [true, "Abstract is required"],
-      trim: true,
-      maxLength: [1000, "Abstract must be max 1000 characters"],
+      index: true,
     },
     publication_date: {
       type: Date,
       required: [true, "Publication date is required"],
-      index: true, // For date-based queries
+      index: true,
     },
-    isbn: {
+    publicationMonth: {
+      type: String,
+      required: [true, "Publication month is required"],
+      validate: {
+        validator: function (v) {
+          const month = parseInt(v);
+          return month >= 1 && month <= 12;
+        },
+        message: "Publication month must be between 1 and 12",
+      },
+    },
+    publicationYear: {
+      type: String,
+      required: [true, "Publication year is required"],
+      validate: {
+        validator: function (v) {
+          const year = parseInt(v);
+          const currentYear = new Date().getFullYear();
+          return year >= 1900 && year <= currentYear + 1;
+        },
+        message: "Publication year must be a valid year",
+      },
+    },
+    isbnIssn: {
       type: String,
       validate: {
         validator: function (v) {
-          return /^(97(8|9))?\d{9}(\d|X)$/.test(v);
+          // Remove hyphens and spaces for validation
+          const cleaned = v.replace(/[-\s]/g, '');
+          
+          // ISBN-10: 9 digits + 1 check digit (can be X)
+          const isbn10Pattern = /^[0-9]{9}[0-9X]$/;
+          
+          // ISBN-13: 13 digits starting with 978 or 979
+          const isbn13Pattern = /^(978|979)[0-9]{10}$/;
+          
+          // ISSN: 4 digits + hyphen + 3 digits + check digit (can be X)
+          // For ISSN, we check the original format with hyphen
+          const issnPattern = /^\d{4}-\d{3}[\dX]$/;
+          
+          return isbn10Pattern.test(cleaned) || 
+                 isbn13Pattern.test(cleaned) || 
+                 issnPattern.test(v);
         },
-        message: "Invalid ISBN format. Use ISBN-10 or ISBN-13 format",
+        message:
+          "Invalid ISBN/ISSN format. Use ISBN-10, ISBN-13, or ISSN format",
       },
-      required: [true, "ISBN is required"],
+      required: [true, "ISBN/ISSN is required"],
       unique: true,
       index: true,
-      uppercase: true, // Normalize ISBN format
+      uppercase: true,
     },
     file_url: {
-      type: String, //store cloudinary url in the database.
+      type: String,
       required: [true, "File URL is required"],
       trim: true,
       maxLength: [500, "File URL must be max 500 characters"],
@@ -49,20 +126,13 @@ const publicationSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Department",
       required: [true, "Department is required"],
-      index: true, // For department-based queries
+      index: true,
     },
     coAuthorCount: {
       type: Number,
       default: 0,
       min: [0, "Co-author count cannot be negative"],
     },
-    keywords: [
-      {
-        type: String,
-        trim: true,
-        maxLength: [50, "Each keyword must be max 50 characters"],
-      },
-    ],
   },
   {
     timestamps: true,
@@ -71,7 +141,45 @@ const publicationSchema = new Schema(
   }
 );
 
-// Virtual populate for authors (ordered by author_order)
+// Add virtual for author department name
+publicationSchema.virtual('authorDepartment', {
+  ref: 'Department',
+  localField: 'authorDeptId',
+  foreignField: '_id',
+  justOne: true
+});
+
+// Add virtual for department name
+publicationSchema.virtual('departmentName', {
+  ref: 'Department',
+  localField: 'department',
+  foreignField: '_id',
+  justOne: true
+});
+
+// Pre-save middleware to construct publication_date from publicationMonth and publicationYear
+publicationSchema.pre("save", function (next) {
+  if (this.publicationMonth && this.publicationYear) {
+    this.publication_date = new Date(
+      parseInt(this.publicationYear),
+      parseInt(this.publicationMonth) - 1,
+      1
+    );
+  }
+  next();
+});
+
+// Virtual for getting formatted publication date
+publicationSchema.virtual("formattedPublicationDate").get(function () {
+  if (this.publication_date) {
+    return this.publication_date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+    });
+  }
+  return null;
+});
+// Virtual for authors (unchanged)
 publicationSchema.virtual("authors", {
   ref: "Author",
   localField: "_id",
@@ -96,37 +204,68 @@ publicationSchema.virtual("primaryAuthor", {
   options: { sort: { author_order: 1 } },
 });
 
+// Virtual for author department reference
+publicationSchema.virtual("authorDepartment", {
+  ref: "Department",
+  localField: "authorDeptId",
+  foreignField: "_id",
+  justOne: true,
+});
+
 // Compound indexes for better query performance
 publicationSchema.index({ department: 1, publication_date: -1 });
-publicationSchema.index({ keywords: 1 }); // For keyword search
+publicationSchema.index({ authorDeptId: 1, publication_date: -1 }); // NEW: For author department queries
+publicationSchema.index({ employeeId: 1, publication_date: -1 }); // NEW: For employee-based queries
+publicationSchema.index({ journalType: 1, publication_date: -1 }); // NEW: For journal type filtering
 
-// Improved text search index (removed authors since it's a virtual field)
+// Updated text search index to include new fields
 publicationSchema.index(
   {
     title: "text",
-    abstract: "text",
-    keywords: "text",
+    authorName: "text", // NEW: Include author name in text search
+    journalName: "text", // NEW: Include journal name in text search
   },
   {
-    weights: { title: 3, keywords: 2, abstract: 1 },
+    weights: {
+      title: 3,
+      authorName: 2.5, // NEW: High weight for author name
+      journalName: 2, // NEW: Medium weight for journal name
+    },
     name: "publication_text_index",
   }
 );
 
 // Additional indexes for search optimization
 publicationSchema.index({ publication_date: -1, department: 1 }); // For date + department filtering
-publicationSchema.index({ keywords: 1, publication_date: -1 }); // For keyword + date searches
+publicationSchema.index({ publication_date: -1 }); //date searches
+publicationSchema.index({ journalName: 1, journalType: 1 }); // NEW: For journal-based searches
+publicationSchema.index({ authorName: 1, authorDeptId: 1 }); // NEW: For author-department searches
 
 // Pre-save middleware for data processing
 publicationSchema.pre("save", function (next) {
-  // Convert keywords to lowercase for consistent searching
-  if (this.keywords && this.keywords.length > 0) {
-    this.keywords = this.keywords.map((keyword) => keyword.toLowerCase());
+  // NEW: Normalize author name for consistent searching
+  if (this.authorName) {
+    this.authorName = this.authorName.trim();
   }
+
+  // NEW: Normalize journal name
+  if (this.journalName) {
+    this.journalName = this.journalName.trim();
+  }
+
+  // NEW: Construct publication_date from publicationMonth and publicationYear
+  if (this.publicationMonth && this.publicationYear) {
+    this.publication_date = new Date(
+      parseInt(this.publicationYear),
+      parseInt(this.publicationMonth) - 1,
+      1
+    );
+  }
+
   next();
 });
 
-// Static method to search publications by author
+// Updated static method to search publications by author (now includes authorName field)
 publicationSchema.statics.searchByAuthor = async function (
   authorQuery,
   options = {}
@@ -155,14 +294,21 @@ publicationSchema.statics.searchByAuthor = async function (
     },
     {
       $match: {
-        authors: {
-          $elemMatch: {
-            $or: [
-              { fullname: { $regex: authorQuery, $options: "i" } },
-              { email: { $regex: authorQuery, $options: "i" } },
-            ],
+        $or: [
+          // NEW: Search in authorName field directly
+          { authorName: { $regex: authorQuery, $options: "i" } },
+          // Also search in related authors
+          {
+            authors: {
+              $elemMatch: {
+                $or: [
+                  { fullname: { $regex: authorQuery, $options: "i" } },
+                  { email: { $regex: authorQuery, $options: "i" } },
+                ],
+              },
+            },
           },
-        },
+        ],
       },
     },
     { $sort: { [sortBy]: sortOrder } },
@@ -178,14 +324,24 @@ publicationSchema.statics.searchByAuthor = async function (
       },
     },
     {
+      $lookup: {
+        from: "departments",
+        localField: "authorDeptId", // NEW: Lookup author department
+        foreignField: "_id",
+        as: "authorDepartment",
+        pipeline: [{ $project: { name: 1 } }],
+      },
+    },
+    {
       $addFields: {
         department: { $arrayElemAt: ["$department", 0] },
+        authorDepartment: { $arrayElemAt: ["$authorDepartment", 0] }, // NEW
       },
     },
   ]);
 };
 
-// Static method to get author search count
+// Updated static method to get author search count
 publicationSchema.statics.getAuthorSearchCount = async function (authorQuery) {
   const result = await this.aggregate([
     {
@@ -198,14 +354,21 @@ publicationSchema.statics.getAuthorSearchCount = async function (authorQuery) {
     },
     {
       $match: {
-        authors: {
-          $elemMatch: {
-            $or: [
-              { fullname: { $regex: authorQuery, $options: "i" } },
-              { email: { $regex: authorQuery, $options: "i" } },
-            ],
+        $or: [
+          // NEW: Search in authorName field directly
+          { authorName: { $regex: authorQuery, $options: "i" } },
+          // Also search in related authors
+          {
+            authors: {
+              $elemMatch: {
+                $or: [
+                  { fullname: { $regex: authorQuery, $options: "i" } },
+                  { email: { $regex: authorQuery, $options: "i" } },
+                ],
+              },
+            },
           },
-        },
+        ],
       },
     },
     { $count: "total" },
@@ -214,7 +377,97 @@ publicationSchema.statics.getAuthorSearchCount = async function (authorQuery) {
   return result.length > 0 ? result[0].total : 0;
 };
 
-// NEW: Simple static method to get publications by year
+// NEW: Static method to search publications by journal
+publicationSchema.statics.searchByJournal = async function (
+  journalQuery,
+  options = {}
+) {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "publication_date",
+    order = "desc",
+    journalType = null,
+  } = options;
+
+  const sortOrder = order === "asc" ? 1 : -1;
+
+  let matchConditions = {
+    journalName: { $regex: journalQuery, $options: "i" },
+  };
+
+  if (journalType) {
+    matchConditions.journalType = journalType;
+  }
+
+  return this.find(matchConditions)
+    .sort({ [sortBy]: sortOrder })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .populate("department", "name")
+    .populate("authorDepartment", "name") // NEW: Populate author department
+    .populate({
+      path: "authors",
+      select: "fullname email author_order",
+      options: { sort: { author_order: 1 } },
+    });
+};
+
+// NEW: Static method to get publications by employee
+publicationSchema.statics.getPublicationsByEmployee = async function (
+  employeeId,
+  options = {}
+) {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "publication_date",
+    order = "desc",
+  } = options;
+
+  const sortOrder = order === "asc" ? 1 : -1;
+
+  return this.find({ employeeId })
+    .sort({ [sortBy]: sortOrder })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .populate("department", "name")
+    .populate("authorDepartment", "name")
+    .populate({
+      path: "authors",
+      select: "fullname email author_order",
+      options: { sort: { author_order: 1 } },
+    });
+};
+
+// NEW: Static method to get publications by journal type
+publicationSchema.statics.getPublicationsByJournalType = async function (
+  journalType,
+  options = {}
+) {
+  const {
+    page = 1,
+    limit = 10,
+    sortBy = "publication_date",
+    order = "desc",
+  } = options;
+
+  const sortOrder = order === "asc" ? 1 : -1;
+
+  return this.find({ journalType })
+    .sort({ [sortBy]: sortOrder })
+    .skip((page - 1) * limit)
+    .limit(limit)
+    .populate("department", "name")
+    .populate("authorDepartment", "name")
+    .populate({
+      path: "authors",
+      select: "fullname email author_order",
+      options: { sort: { author_order: 1 } },
+    });
+};
+
+// Updated static method to get publications by year (now uses publicationYear field as well)
 publicationSchema.statics.getPublicationsByYear = async function (
   year,
   options = {}
@@ -230,15 +483,17 @@ publicationSchema.statics.getPublicationsByYear = async function (
 
   const sortOrder = order === "asc" ? 1 : -1;
 
-  // Create date range for the specified year
-  const startOfYear = new Date(`${year}-01-01`);
-  const endOfYear = new Date(`${year + 1}-01-01`);
-
+  // Use both publication_date and publicationYear for flexibility
   let query = this.find({
-    publication_date: {
-      $gte: startOfYear,
-      $lt: endOfYear,
-    },
+    $or: [
+      {
+        publication_date: {
+          $gte: new Date(`${year}-01-01`),
+          $lt: new Date(`${year + 1}-01-01`),
+        },
+      },
+      { publicationYear: year.toString() }, // NEW: Also search by publicationYear string
+    ],
   });
 
   // Apply sorting
@@ -250,6 +505,7 @@ publicationSchema.statics.getPublicationsByYear = async function (
   // Populate related data if requested
   if (populateDepartment) {
     query = query.populate("department", "name");
+    query = query.populate("authorDepartment", "name"); // NEW: Populate author department
   }
 
   if (populateAuthors) {
@@ -263,20 +519,22 @@ publicationSchema.statics.getPublicationsByYear = async function (
   return query.exec();
 };
 
-// NEW: Static method to get count of publications by year
+// Updated static method to get count of publications by year
 publicationSchema.statics.getPublicationCountByYear = async function (year) {
-  const startOfYear = new Date(`${year}-01-01`);
-  const endOfYear = new Date(`${year + 1}-01-01`);
-
   return this.countDocuments({
-    publication_date: {
-      $gte: startOfYear,
-      $lt: endOfYear,
-    },
+    $or: [
+      {
+        publication_date: {
+          $gte: new Date(`${year}-01-01`),
+          $lt: new Date(`${year + 1}-01-01`),
+        },
+      },
+      { publicationYear: year.toString() }, // NEW: Also count by publicationYear string
+    ],
   });
 };
 
-// NEW: Static method to get publications grouped by year (useful for analytics)
+// Updated static method to get publications grouped by year
 publicationSchema.statics.getPublicationsByYearGrouped = async function (
   startYear,
   endYear
@@ -284,15 +542,37 @@ publicationSchema.statics.getPublicationsByYearGrouped = async function (
   return this.aggregate([
     {
       $match: {
-        publication_date: {
-          $gte: new Date(`${startYear}-01-01`),
-          $lt: new Date(`${endYear + 1}-01-01`),
+        $or: [
+          {
+            publication_date: {
+              $gte: new Date(`${startYear}-01-01`),
+              $lt: new Date(`${endYear + 1}-01-01`),
+            },
+          },
+          {
+            publicationYear: {
+              $gte: startYear.toString(),
+              $lte: endYear.toString(),
+            },
+          },
+        ],
+      },
+    },
+    {
+      $addFields: {
+        // NEW: Use publicationYear if available, otherwise extract from publication_date
+        yearField: {
+          $cond: {
+            if: { $ne: ["$publicationYear", null] },
+            then: { $toInt: "$publicationYear" },
+            else: { $year: "$publication_date" },
+          },
         },
       },
     },
     {
       $group: {
-        _id: { $year: "$publication_date" },
+        _id: "$yearField",
         count: { $sum: 1 },
         publications: { $push: "$$ROOT" },
       },
@@ -312,28 +592,65 @@ publicationSchema.statics.getPublicationsByYearGrouped = async function (
   ]);
 };
 
-// Instance method to get related publications by keywords
-publicationSchema.methods.getRelatedPublications = async function (limit = 5) {
-  if (!this.keywords || this.keywords.length === 0) {
-    return [];
-  }
-
-  return this.constructor
-    .find({
-      _id: { $ne: this._id },
-      keywords: { $in: this.keywords },
-    })
-    .limit(limit)
-    .select("title publication_date keywords")
-    .populate("department", "name")
-    .sort({ publication_date: -1 });
+// NEW: Static method to get analytics by journal type
+publicationSchema.statics.getAnalyticsByJournalType = async function (
+  startYear,
+  endYear
+) {
+  return this.aggregate([
+    {
+      $match: {
+        $or: [
+          {
+            publication_date: {
+              $gte: new Date(`${startYear}-01-01`),
+              $lt: new Date(`${endYear + 1}-01-01`),
+            },
+          },
+          {
+            publicationYear: {
+              $gte: startYear.toString(),
+              $lte: endYear.toString(),
+            },
+          },
+        ],
+      },
+    },
+    {
+      $group: {
+        _id: "$journalType",
+        count: { $sum: 1 },
+        publications: {
+          $push: {
+            title: "$title",
+            journalName: "$journalName",
+            authorName: "$authorName",
+          },
+        },
+      },
+    },
+    {
+      $sort: { count: -1 },
+    },
+  ]);
 };
 
-// Instance method to check if publication is recent (within last year)
+// Instance method to check if publication is recent (within last year) - unchanged
 publicationSchema.methods.isRecent = function () {
   const oneYearAgo = new Date();
   oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
   return this.publication_date >= oneYearAgo;
 };
 
+// NEW: Instance method to get formatted publication info
+publicationSchema.methods.getFormattedInfo = function () {
+  return {
+    title: this.title,
+    author: this.authorName,
+    journal: `${this.journalName} (${this.journalType})`,
+    publicationDate: this.formattedPublicationDate,
+    department: this.department?.name || "Unknown",
+    authorDepartment: this.authorDepartment?.name || "Unknown",
+  };
+};
 export const Publication = mongoose.model("Publication", publicationSchema);
