@@ -619,7 +619,7 @@ const loginAdmin = async (req, res) => {
     });
   }
 };
-// POST /api/auth/logout - Admin logout route
+// POST /api/admin/logout - Admin logout route
 const logoutAdmin = async (req, res) => {
   try {
     // Check if user is actually logged in

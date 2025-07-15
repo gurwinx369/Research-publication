@@ -43,9 +43,9 @@ router.post("/publication", upload.single("pdfFile"), registerPublication);
 router.post("/authors/assign-publication", assignAuthorToPublication);
 // Protected routes (require authentication)
 router.post("/register/admin", requireAuthentication, registerAdmin);
-router.post("/register/author", registerAuthor);
-router.post("/register/department", registerDepartment);
-router.get("/admin/logout", requireAuthentication, logoutAdmin);
+router.post("/register/author", requireAuthentication, registerAuthor);
+router.post("/register/department", requireAuthentication, registerDepartment);
+router.post("/admin/logout", requireAuthentication, logoutAdmin);
 
 // Data retrieval routes
 router.get("/counts", getAllCounts); //deaprtment, publication, users count
