@@ -64,7 +64,6 @@ const getAuthorByEmployeeId = async (req, res) => {
     });
   }
 };
-
 //Get a list of 10 publications with pagination and sorting options
 const getPublicationsPagination = async (req, res) => {
   try {

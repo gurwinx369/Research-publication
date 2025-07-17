@@ -57,7 +57,7 @@ router.get(
   getAuthorPublications
 ); 
 router.get("/authors/employee-id", getAuthorByEmployeeId); // New author by employee ID search for auto pick
-// Get publications for a specific author
+// Get publications  
 router.get("/publications", getPublicationsPagination);
 router.get("/publications/search", searchPublications); // Advanced search
 router.get("/publications/text-search", simpleTextSearch); // Simple text search
