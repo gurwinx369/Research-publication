@@ -14,35 +14,9 @@ const authorSchema = new Schema(
       trim: true,
       maxLength: [100, "Author name must be max 100 characters"],
     },
-    email: {
-      type: String,
-      required: function () {
-        // Required for primary author OR when registering standalone author
-        return this.author_order === 1 || !this.publication_id;
-      },
-      trim: true,
-      lowercase: true,
-      validate: {
-        validator: function (v) {
-          return !v || /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/.test(v);
-        },
-        message: "Please enter a valid email address",
-      },
-    },
     password: {
       type: String,
       required: true,
-    },
-    role: {
-      type: String,
-      enum: [
-        "Associate Professor",
-        "Assistant Professor",
-        "Professor",
-        "Researcher",
-        "Technical Staff",
-      ],
-      default: "Researcher",
     },
     department: {
       type: Schema.Types.ObjectId,
@@ -127,13 +101,10 @@ authorSchema.index(
 );
 
 // For department-based queries
-authorSchema.index({ department: 1, role: 1 });
+authorSchema.index({ department: 1 });
 
 // For employee-based queries
 authorSchema.index({ employee_id: 1, department: 1 });
-
-// For email lookups (sparse allows multiple null values)
-authorSchema.index({ email: 1 }, { unique: true, sparse: true });
 
 // For filtering active authors
 authorSchema.index({ isActive: 1, publication_id: 1 });
@@ -153,7 +124,6 @@ authorSchema.virtual("basicProfile").get(function () {
   return {
     name: this.author_name,
     department: this.department,
-    email: this.email,
     employee_id: this.employee_id,
   };
 });
@@ -203,7 +173,7 @@ authorSchema.statics.getAuthorsByPublication = function (publicationId) {
     isActive: true,
   })
     .sort({ author_order: 1 })
-    .select("author_name email department role author_order employee_id");
+    .select("author_name department author_order employee_id");
 };
 
 authorSchema.statics.getPrimaryAuthor = function (publicationId) {
@@ -218,7 +188,7 @@ authorSchema.statics.getPrimaryAuthor = function (publicationId) {
 authorSchema.statics.getAllRegisteredAuthors = function () {
   return this.find({ isActive: true })
     .select(
-      "author_name email department role employee_id publication_id author_order"
+      "author_name department employee_id publication_id author_order"
     )
     .sort({ author_name: 1 });
 };
@@ -229,7 +199,7 @@ authorSchema.statics.getUnassignedAuthors = function () {
     publication_id: null,
     isActive: true,
   })
-    .select("author_name email department role employee_id")
+    .select("author_name department employee_id")
     .sort({ author_name: 1 });
 };
 
@@ -249,7 +219,7 @@ authorSchema.statics.searchAuthorsByName = function (
   return this.find(query)
     .sort({ author_name: 1, author_order: 1 })
     .select(
-      "author_name email department role author_order employee_id publication_id"
+      "author_name department author_order employee_id publication_id"
     );
 };
 
@@ -260,7 +230,7 @@ authorSchema.statics.getCoAuthors = function (publicationId) {
     isActive: true,
   })
     .sort({ author_order: 1 })
-    .select("author_name email department role author_order employee_id");
+    .select("author_name department author_order employee_id");
 };
 
 // Instance method to check if author is primary

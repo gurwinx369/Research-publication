@@ -19,7 +19,6 @@ import {
   getAuthorByEmployeeId // New author by employee ID search for auto pick
 } from "../controllers/data.controller.js";
 import {
-  searchAuthorWithEmail,
   searchAuthorWithEmployeeId, // Fixed typo in original export
   searchAuthorWithFullName,
   getPrivateDataCounts,
@@ -74,11 +73,6 @@ router.get(
 router.get("/private-data/departments", requireAuthentication, getDepartments);
 router.get("/private-data/admins", getAdminCounts);
 router.get(
-  "/private-data/search/email",
-  requireAuthentication,
-  searchAuthorWithEmail
-);
-router.get(
   "/private-data/search/employee-id",
   requireAuthentication,
   searchAuthorWithEmployeeId
@@ -98,7 +92,7 @@ import {
 } from "../controllers/user.controller.js";
 
 // delete unassigned author
-router.post("/delete/author/unassigned", deleteUnassignedAuthor);
+router.post("/private-data/delete/author/:userId", deleteUnassignedAuthor);
 router.post("/delete/admin", deleteAdmin);
 router.post("/delete/department", deleteDepartment);
 router.post("/delete/publication", deletePublication);

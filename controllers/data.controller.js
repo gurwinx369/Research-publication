@@ -89,7 +89,7 @@ const getPublicationsPagination = async (req, res) => {
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber)
       .populate("department", "name")
-      .populate("authors", "fullname email")
+      .populate("authors", "fullname")
       .exec();
 
     console.log("Publications fetched:", publications);
@@ -236,7 +236,7 @@ const simpleTextSearch = async (req, res) => {
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber)
       .populate("department", "name")
-      .populate("authors", "fullname email")
+      .populate("authors", "fullname")
       .select("title abstract publication_date keywords file_url") // Select specific fields
       .exec();
 

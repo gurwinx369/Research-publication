@@ -204,16 +204,14 @@ const registerPublication = async (req, res) => {
   }
 };
 const registerAuthor = async (req, res) => {
-  const { employee_id, author_name, email, password, role, department } =
+  const { employee_id, author_name, password, department } =
     req.body;
 
   if (
     !employee_id ||
     !author_name ||
-    !email ||
     !department ||
-    !password ||
-    !role
+    !password
   ) {
     return res.status(400).json({
       message: "Please provide all required fields for registration",
@@ -230,9 +228,7 @@ const registerAuthor = async (req, res) => {
     const newAuthor = new Author({
       employee_id,
       author_name,
-      email,
       password,
-      role,
       department,
       // publication_id and author_order will be null
     });
@@ -255,8 +251,6 @@ const assignAuthorToPublication = async (req, res) => {
     publication_id,
     author_order,
     author_name,
-    email,
-    role,
     department,
   } = req.body;
 
@@ -369,10 +363,7 @@ const assignAuthorToPublication = async (req, res) => {
     const authorAssignment = new Author({
       employee_id: existingAuthor.employee_id,
       author_name: author_name || existingAuthor.author_name,
-      // DON'T copy email to avoid unique constraint violation
-      email: author_order === 1 ? (email || existingAuthor.email) : undefined,
       password: existingAuthor.password,
-      role: role || existingAuthor.role,
       department: department || existingAuthor.department,
       publication_id,
       author_order,
@@ -381,7 +372,6 @@ const assignAuthorToPublication = async (req, res) => {
 
     console.log("🔍 DEBUGGING: About to save assignment:", {
       employee_id: authorAssignment.employee_id,
-      email: authorAssignment.email,
       publication_id: authorAssignment.publication_id,
       author_order: authorAssignment.author_order,
     });
@@ -400,8 +390,6 @@ const assignAuthorToPublication = async (req, res) => {
         id: authorAssignment._id,
         employee_id: authorAssignment.employee_id,
         author_name: authorAssignment.author_name,
-        email: authorAssignment.email,
-        role: authorAssignment.role,
         department: authorAssignment.department,
         publication: authorAssignment.publication_id,
         author_order: authorAssignment.author_order,
@@ -423,8 +411,6 @@ const assignAuthorToPublication = async (req, res) => {
       // Handle different types of duplicate key errors
       if (error.keyPattern?.employee_id) {
         message = `Employee ID ${error.keyValue?.employee_id} constraint violation. There may be a problematic unique index on employee_id.`;
-      } else if (error.keyPattern?.email) {
-        message = `Email ${error.keyValue?.email} already exists. Only primary authors (order 1) should have emails.`;
       } else if (error.keyPattern?.publication_id && error.keyPattern?.employee_id) {
         message = "Author is already assigned to this publication.";
       } else if (error.keyPattern?.publication_id && error.keyPattern?.author_order) {
@@ -472,7 +458,7 @@ const getUnassignedAuthors = async (req, res) => {
     const unassignedAuthors = await Author.find({
       publication_id: null,
       isActive: true,
-    }).select("employee_id author_name email role department");
+    }).select("employee_id author_name department");
 
     return res.status(200).json({
       message: "Unassigned authors retrieved successfully",
@@ -1008,7 +994,6 @@ const deleteUnassignedAuthor = async (req, res) => {
       deletedAuthor: {
         employee_id: author.employee_id,
         author_name: author.author_name,
-        email: author.email,
       },
     });
   } catch (error) {
