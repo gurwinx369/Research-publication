@@ -26,44 +26,44 @@ const getAllCounts = async (req, res) => {
     });
   }
 };
-// Get the author by its employee ID
-const getAuthorByEmployeeId = async (req, res) => {
-  try {
-    const { q } = req.query;
-    console.log("Employee ID query:", q);
-    // Check if q (employee ID) is provided
-    if (!q) {
-      return res.status(400).json({
-        success: false,
-        message: "Employee ID is required",
-      });
-    }
+    // Get the author by its employee ID
+    const getAuthorByEmployeeId = async (req, res) => {
+      try {
+        const { q } = req.query;
+        console.log("Employee ID query:", q);
+        // Check if q (employee ID) is provided
+        if (!q) {
+          return res.status(400).json({
+            success: false,
+            message: "Employee ID is required",
+          });
+        }
 
-    // Use employeeId field in database query, not q
-    const authorBio = await Author.findOne({ employee_id: q })
-      .select("author_name department -_id")
-      .lean();
+        // Use employeeId field in database query, not q
+        const authorBio = await Author.findOne({ employee_id: q })
+          .select("author_name department -_id")
+          .lean();
 
-    if (!authorBio) {
-      return res.status(404).json({
-        success: false,
-        message: "Author not found with this employee ID",
-      });
-    }
+        if (!authorBio) {
+          return res.status(404).json({
+            success: false,
+            message: "Author not found with this employee ID",
+          });
+        }
 
-    res.status(200).json({
-      success: true,
-      authorBio,
-      message: "Author retrieved successfully",
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: "Error fetching author by employee ID",
-      error: error.message,
-    });
-  }
-};
+        res.status(200).json({
+          success: true,
+          authorBio,
+          message: "Author retrieved successfully",
+        });
+      } catch (error) {
+        res.status(500).json({
+          success: false,
+          message: "Error fetching author by employee ID",
+          error: error.message,
+        });
+      }
+    };
 //Get a list of 10 publications with pagination and sorting options
 const getPublicationsPagination = async (req, res) => {
   try {
