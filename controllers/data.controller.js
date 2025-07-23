@@ -26,8 +26,8 @@ const getAllCounts = async (req, res) => {
     });
   }
 };
-    // Get the author by its employee ID
-    const getAuthorByEmployeeId = async (req, res) => {
+// Get the author by its employee ID
+const getAuthorByEmployeeId = async (req, res) => {
       try {
         const { q } = req.query;
         console.log("Employee ID query:", q);
@@ -63,7 +63,7 @@ const getAllCounts = async (req, res) => {
           error: error.message,
         });
       }
-    };
+};
 //Get a list of 10 publications with pagination and sorting options
 const getPublicationsPagination = async (req, res) => {
   try {
