@@ -232,7 +232,6 @@ authorSchema.statics.getCoAuthors = function (publicationId) {
     .sort({ author_order: 1 })
     .select("author_name department author_order employee_id");
 };
-
 // Instance method to check if author is primary
 authorSchema.methods.isPrimary = function () {
   return this.author_order === 1;

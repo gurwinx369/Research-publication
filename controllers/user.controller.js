@@ -204,55 +204,163 @@ const registerPublication = async (req, res) => {
   }
 };
 const registerAuthor = async (req, res) => {
-  const { employee_id, author_name, password, department } =
-    req.body;
+  const { employee_id, author_name, password, department } = req.body;
 
-  if (
-    !employee_id ||
-    !author_name ||
-    !department ||
-    !password
-  ) {
+  // Validate required fields
+  if (!employee_id || !author_name || !department || !password) {
     return res.status(400).json({
       message: "Please provide all required fields for registration",
     });
   }
 
+  // Validate employee_id is a positive number
+  const employeeIdNum = Number(employee_id);
+  if (isNaN(employeeIdNum) || employeeIdNum <= 0) {
+    return res.status(400).json({
+      message: "Employee ID must be a positive number",
+    });
+  }
+
+  // Validate field lengths
+  if (author_name.length > 100) {
+    return res.status(400).json({
+      message: "Author name must be max 100 characters",
+    });
+  }
+
   try {
-    // Check if author already exists
-    const existingAuthor = await Author.findOne({ employee_id });
+    // Check if author already exists with this employee_id
+    const existingAuthor = await Author.findOne({ 
+      employee_id: employeeIdNum,
+      isActive: true 
+    });
+    
     if (existingAuthor) {
-      return res.status(400).json({ message: "Author already exists" });
+      return res.status(400).json({ 
+        message: "Author with this employee ID already exists",
+        existing_author: {
+          id: existingAuthor._id,
+          name: existingAuthor.author_name,
+          employee_id: existingAuthor.employee_id
+        }
+      });
     }
 
+    // Validate department exists
+    const departmentExists = await Department.findById(department);
+    if (!departmentExists) {
+      return res.status(400).json({
+        message: "Department not found. Please provide a valid department ID.",
+      });
+    }
+
+    // Create new author (unassigned to any publication)
     const newAuthor = new Author({
-      employee_id,
-      author_name,
-      password,
+      employee_id: employeeIdNum,
+      author_name: author_name.trim(),
+      password: password.trim(),
       department,
-      // publication_id and author_order will be null
+      publication_id: null, // Explicitly set to null
+      author_order: null,   // Explicitly set to null
+      isActive: true
+    });
+
+    console.log('🔍 Attempting to save author:', {
+      employee_id: newAuthor.employee_id,
+      author_name: newAuthor.author_name,
+      publication_id: newAuthor.publication_id,
+      author_order: newAuthor.author_order
     });
 
     await newAuthor.save();
+    console.log('✅ Author registered successfully:', newAuthor._id);
+
+    // Populate department info for response
+    await newAuthor.populate('department', 'name code');
 
     return res.status(201).json({
       message: "Author registered successfully",
-      author: newAuthor,
+      author: {
+        id: newAuthor._id,
+        employee_id: newAuthor.employee_id,
+        author_name: newAuthor.author_name,
+        department: newAuthor.department,
+        isActive: newAuthor.isActive,
+        createdAt: newAuthor.createdAt
+      },
     });
+
   } catch (error) {
-    console.error("Error registering author:", error);
-    return res.status(500).json({ message: "Internal server error" });
+    console.error("❌ Error registering author:", error);
+
+    // Handle duplicate key errors with detailed information
+    if (error.code === 11000) {
+      console.log('🔍 Duplicate key error details:');
+      console.log('- Key pattern:', error.keyPattern);
+      console.log('- Key value:', error.keyValue);
+      console.log('- Index:', error.index);
+
+      let message = "Registration failed due to duplicate data.";
+      let errorType = "DUPLICATE_KEY_ERROR";
+
+      // Handle specific duplicate scenarios
+      if (error.keyPattern?.employee_id) {
+        message = `Employee ID ${error.keyValue?.employee_id} is already registered.`;
+        errorType = "DUPLICATE_EMPLOYEE_ID";
+      } else if (error.keyPattern?.publication_id && error.keyPattern?.author_order) {
+        message = "Database index error: Cannot create multiple unassigned authors. This indicates a database configuration issue.";
+        errorType = "INDEX_CONFIGURATION_ERROR";
+        
+        // Log additional info for debugging
+        console.log('❌ CRITICAL: Problematic index still exists!');
+        console.log('This should not happen with proper partial indexes.');
+        console.log('Manual database intervention required.');
+      }
+
+      return res.status(400).json({
+        message,
+        error: errorType,
+        keyPattern: error.keyPattern,
+        keyValue: error.keyValue,
+        ...(errorType === "INDEX_CONFIGURATION_ERROR" && {
+          solution: "Contact administrator to fix database indexes"
+        })
+      });
+    }
+
+    // Handle validation errors
+    if (error.name === "ValidationError") {
+      const validationErrors = Object.values(error.errors).map((err) => ({
+        field: err.path,
+        message: err.message,
+        value: err.value
+      }));
+
+      return res.status(400).json({
+        message: "Validation failed",
+        errors: validationErrors,
+      });
+    }
+
+    // Handle cast errors (invalid ObjectId for department)
+    if (error.name === "CastError") {
+      return res.status(400).json({
+        message: `Invalid ${error.path}: ${error.value}`,
+        error: "INVALID_DEPARTMENT_ID",
+      });
+    }
+
+    // Generic server error
+    return res.status(500).json({
+      message: "Internal server error during author registration",
+      error: process.env.NODE_ENV === "development" ? error.message : "Please try again later"
+    });
   }
 };
 // 2. ASSIGN AUTHOR TO PUBLICATION
 const assignAuthorToPublication = async (req, res) => {
-  const {
-    employee_id,
-    publication_id,
-    author_order,
-    author_name,
-    department,
-  } = req.body;
+  const { employee_id, publication_id, author_order, author_name, department } =
+    req.body;
 
   if (!employee_id || !publication_id || !author_order) {
     return res.status(400).json({
@@ -277,21 +385,26 @@ const assignAuthorToPublication = async (req, res) => {
 
     // DIAGNOSTIC: Check for old problematic indexes
     const indexes = await Author.collection.getIndexes();
-    const hasProblematicIndex = indexes.hasOwnProperty('employee_id_1');
-    
+    const hasProblematicIndex = indexes.hasOwnProperty("employee_id_1");
+
     if (hasProblematicIndex) {
       console.log("❌ WARNING: Found problematic employee_id_1 index");
-      console.log("This index needs to be removed to allow multiple publications per employee");
-      
+      console.log(
+        "This index needs to be removed to allow multiple publications per employee"
+      );
+
       // Try to remove the problematic index
       try {
         await Author.collection.dropIndex("employee_id_1");
         console.log("✅ Successfully removed problematic employee_id_1 index");
       } catch (indexError) {
-        console.log("⚠️ Could not remove employee_id_1 index:", indexError.message);
+        console.log(
+          "⚠️ Could not remove employee_id_1 index:",
+          indexError.message
+        );
         return res.status(500).json({
           message: "Database index conflict. Please contact administrator.",
-          error: "INDEX_CONFLICT"
+          error: "INDEX_CONFLICT",
         });
       }
     }
@@ -305,7 +418,8 @@ const assignAuthorToPublication = async (req, res) => {
 
     if (!existingAuthor) {
       return res.status(404).json({
-        message: "Author not found or not registered. Please register the author first.",
+        message:
+          "Author not found or not registered. Please register the author first.",
       });
     }
 
@@ -378,7 +492,10 @@ const assignAuthorToPublication = async (req, res) => {
 
     await authorAssignment.save();
 
-    console.log("✅ Author assignment saved successfully:", authorAssignment._id);
+    console.log(
+      "✅ Author assignment saved successfully:",
+      authorAssignment._id
+    );
 
     // Populate the response with department info
     await authorAssignment.populate("department", "name");
@@ -405,15 +522,21 @@ const assignAuthorToPublication = async (req, res) => {
       console.log("🔍 Duplicate key error details:");
       console.log("- Key pattern:", error.keyPattern);
       console.log("- Key value:", error.keyValue);
-      
+
       let message = "Duplicate assignment detected.";
-      
+
       // Handle different types of duplicate key errors
       if (error.keyPattern?.employee_id) {
         message = `Employee ID ${error.keyValue?.employee_id} constraint violation. There may be a problematic unique index on employee_id.`;
-      } else if (error.keyPattern?.publication_id && error.keyPattern?.employee_id) {
+      } else if (
+        error.keyPattern?.publication_id &&
+        error.keyPattern?.employee_id
+      ) {
         message = "Author is already assigned to this publication.";
-      } else if (error.keyPattern?.publication_id && error.keyPattern?.author_order) {
+      } else if (
+        error.keyPattern?.publication_id &&
+        error.keyPattern?.author_order
+      ) {
         message = `Author order ${error.keyValue?.author_order} is already taken for this publication.`;
       }
 
