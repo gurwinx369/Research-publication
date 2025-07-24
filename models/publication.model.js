@@ -107,7 +107,6 @@ const publicationSchema = new Schema(
       },
       required: [true, "ISBN/ISSN is required"],
       unique: true,
-      index: true,
       uppercase: true,
     },
     file_url: {

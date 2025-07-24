@@ -16,7 +16,7 @@ import {
   simpleTextSearch,
   searchByAuthor,
   getRelatedPublications,
-  getAuthorByEmployeeId // New author by employee ID search for auto pick
+  getAuthorByEmployeeId, // New author by employee ID search for auto pick
 } from "../controllers/data.controller.js";
 import {
   searchAuthorWithEmployeeId, // Fixed typo in original export
@@ -54,9 +54,9 @@ router.get(
   "/authors/publications",
   requireAuthentication,
   getAuthorPublications
-); 
+);
 router.get("/authors/employee-id", getAuthorByEmployeeId); // New author by employee ID search for auto pick
-// Get publications  
+// Get publications
 router.get("/publications", getPublicationsPagination);
 router.get("/publications/search", searchPublications); // Advanced search
 router.get("/publications/text-search", simpleTextSearch); // Simple text search
@@ -92,7 +92,7 @@ import {
 } from "../controllers/user.controller.js";
 
 // delete unassigned author
-router.post("/private-data/delete/author/:userId", deleteUnassignedAuthor);
+router.delete("/private-data/delete/unassigned-author", deleteUnassignedAuthor);
 router.post("/delete/admin", deleteAdmin);
 router.post("/delete/department", deleteDepartment);
 router.post("/delete/publication", deletePublication);
