@@ -1203,7 +1203,7 @@ const deleteAdmin = async (req, res) => {
 // 3. DELETE DEPARTMENT
 const deleteDepartment = async (req, res) => {
   try {
-    const { department_id } = req.params;
+    const { department_id } = req.body;
 
     if (!department_id) {
       return res.status(400).json({
@@ -1231,7 +1231,7 @@ const deleteDepartment = async (req, res) => {
       department: department_id,
     });
 
-    if (authorsCount > 0 || publicationsCount > 0) {
+    /* if (authorsCount > 0 || publicationsCount > 0) {
       return res.status(400).json({
         success: false,
         message:
@@ -1241,7 +1241,7 @@ const deleteDepartment = async (req, res) => {
           publicationsCount,
         },
       });
-    }
+    } */
 
     // Store department info for response
     const deletedDepartmentInfo = {

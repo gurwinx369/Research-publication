@@ -93,7 +93,7 @@ import {
 
 // delete unassigned author
 router.delete("/private-data/delete/unassigned-author", deleteUnassignedAuthor);
-router.post("/delete/admin", deleteAdmin);
-router.post("/delete/department", deleteDepartment);
-router.post("/delete/publication", deletePublication);
+//router.delete("/delete/admin", deleteAdmin); //disclaimer: only in times of emergency
+router.delete("/private-data/delete/department", deleteDepartment);
+router.delete("/private-data/delete/publication", deletePublication);
 export default router;
