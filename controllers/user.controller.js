@@ -1231,7 +1231,7 @@ const deleteDepartment = async (req, res) => {
       department: department_id,
     });
 
-    /* if (authorsCount > 0 || publicationsCount > 0) {
+    if (authorsCount > 0 || publicationsCount > 0) {
       return res.status(400).json({
         success: false,
         message:
@@ -1241,7 +1241,7 @@ const deleteDepartment = async (req, res) => {
           publicationsCount,
         },
       });
-    } */
+    }
 
     // Store department info for response
     const deletedDepartmentInfo = {
