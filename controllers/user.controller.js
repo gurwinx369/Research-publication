@@ -622,30 +622,24 @@ const getAuthorPublications = async (req, res) => {
 };
 
 const registerDepartment = async (req, res) => {
-  const { name, code, university, head, description } = req.body;
+  const { name, university } = req.body;
   console.log({
     name,
-    code,
     university,
-    head,
-    description,
   });
 
-  if (!name || !code || !university)
+  if (!name || !university)
     return res
       .status(400)
       .json({ message: "Please provide all required fields" });
 
   try {
-    const existingDepartment = await Department.findOne({ code });
+    const existingDepartment = await Department.findOne({ name, university });
     if (existingDepartment)
       return res.status(400).json({ message: "Department already exists" });
     const newDepartment = new Department({
       name,
-      code,
       university,
-      head,
-      description,
     });
     await newDepartment.save();
     return res.status(201).json({

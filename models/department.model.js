@@ -8,24 +8,10 @@ const departmentSchema = new mongoose.Schema(
       required: true,
       unique: true,
     },
-    code: {
-      type: String,
-      enum: {
-        values: ["CSE", "ECE", "ME", "CE", "EE", "IT"], // may change according to the list
-        message: "Department must be one of: CSE, ECE, ME, CE, EE, IT",
-      },
-      required: true,
-      unique: true, // e.g., "CS", "EE", "ME"
-    },
     university: {
       type: String,
       required: true,
     },
-    head: {
-      type: String, // Department head name
-      required: true,
-    },
-    description: String,
     isActive: {
       type: Boolean,
       default: true,
