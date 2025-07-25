@@ -28,41 +28,41 @@ const getAllCounts = async (req, res) => {
 };
 // Get the author by its employee ID
 const getAuthorByEmployeeId = async (req, res) => {
-      try {
-        const { q } = req.query;
-        console.log("Employee ID query:", q);
-        // Check if q (employee ID) is provided
-        if (!q) {
-          return res.status(400).json({
-            success: false,
-            message: "Employee ID is required",
-          });
-        }
+  try {
+    const { q } = req.query;
+    console.log("Employee ID query:", q);
+    // Check if q (employee ID) is provided
+    if (!q) {
+      return res.status(400).json({
+        success: false,
+        message: "Employee ID is required",
+      });
+    }
 
-        // Use employeeId field in database query, not q
-        const authorBio = await Author.findOne({ employee_id: q })
-          .select("author_name department -_id")
-          .lean();
+    // Use employeeId field in database query, not q
+    const authorBio = await Author.findOne({ employee_id: q })
+      .select("author_name department -_id")
+      .lean();
 
-        if (!authorBio) {
-          return res.status(404).json({
-            success: false,
-            message: "Author not found with this employee ID",
-          });
-        }
+    if (!authorBio) {
+      return res.status(404).json({
+        success: false,
+        message: "Author not found with this employee ID",
+      });
+    }
 
-        res.status(200).json({
-          success: true,
-          authorBio,
-          message: "Author retrieved successfully",
-        });
-      } catch (error) {
-        res.status(500).json({
-          success: false,
-          message: "Error fetching author by employee ID",
-          error: error.message,
-        });
-      }
+    res.status(200).json({
+      success: true,
+      authorBio,
+      message: "Author retrieved successfully",
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: "Error fetching author by employee ID",
+      error: error.message,
+    });
+  }
 };
 //Get a list of 10 publications with pagination and sorting options
 const getPublicationsPagination = async (req, res) => {
@@ -215,7 +215,7 @@ const searchPublications = async (req, res) => {
     });
   }
 };
-// NEW: Simple Text Search Function
+// Simple Text Search Function - Title and Author Only
 const simpleTextSearch = async (req, res) => {
   try {
     const { q = "", page = 1, limit = 10 } = req.query;
@@ -230,19 +230,31 @@ const simpleTextSearch = async (req, res) => {
       });
     }
 
-    // Use MongoDB text search
-    const publications = await Publication.find({ $text: { $search: q } })
-      .sort({ score: { $meta: "textScore" } }) // Sort by relevance
+    // Search only in title and authorName fields
+    const searchQuery = {
+      $or: [
+        { title: { $regex: q, $options: "i" } },
+        { authorName: { $regex: q, $options: "i" } },
+      ],
+    };
+
+    const publications = await Publication.find(searchQuery)
+      .sort({ publication_date: -1 }) // Sort by publication date (newest first)
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber)
       .populate("department", "name")
-      .populate("authors", "fullname")
-      .select("title abstract publication_date keywords file_url") // Select specific fields
+      .populate("authorDepartment", "name")
+      .populate({
+        path: "authors",
+        select: "fullname email author_order",
+        options: { sort: { author_order: 1 } },
+      })
+      .select(
+        "title authorName journalName journalType publication_date publicationYear"
+      )
       .exec();
 
-    const totalCount = await Publication.countDocuments({
-      $text: { $search: q },
-    });
+    const totalCount = await Publication.countDocuments(searchQuery);
     const totalPages = Math.ceil(totalCount / limitNumber);
 
     res.status(200).json({
@@ -261,6 +273,7 @@ const simpleTextSearch = async (req, res) => {
   } catch (error) {
     console.error("Text search error:", error);
     res.status(500).json({
+      success: false,
       message: "Error in text search",
       error: error.message,
     });
