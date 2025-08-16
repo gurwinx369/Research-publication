@@ -89,13 +89,35 @@ const getPublicationsPagination = async (req, res) => {
       .skip((pageNumber - 1) * limitNumber)
       .limit(limitNumber)
       .populate("department", "name")
-      .populate("authors", "fullname")
+      .populate("authorDeptId", "name") // Also populate author department
+      .populate({
+        path: "authors",
+        select: "fullname email author_order", // Include more fields if needed
+        options: { sort: { author_order: 1 } }, // Sort by author order
+      })
       .exec();
 
-    console.log("Publications fetched:", publications);
+    // Transform the data to include co-author names separately if needed
+    const transformedPublications = publications.map((pub) => {
+      const pubObj = pub.toObject();
+
+      // Extract co-authors (excluding the first author if needed)
+      const allAuthors = pubObj.authors || [];
+      const coAuthors = allAuthors.slice(1); // Skip first author if it's the primary
+
+      return {
+        ...pubObj,
+        coAuthorNames: coAuthors.map((author) => author.fullname),
+        coAuthorDetails: coAuthors, // Full co-author objects
+        allAuthorNames: allAuthors.map((author) => author.fullname),
+      };
+    });
+
+    console.log("Publications fetched:", transformedPublications);
+
     res.status(200).json({
       success: true,
-      publications,
+      publications: transformedPublications,
       message: "Publications retrieved successfully",
       pagination: {
         page: pageNumber,
@@ -103,6 +125,7 @@ const getPublicationsPagination = async (req, res) => {
       },
     });
   } catch (error) {
+    console.error("Error fetching publications:", error);
     res.status(500).json({
       message: "Error fetching publications",
       error: error.message,

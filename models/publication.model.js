@@ -86,21 +86,23 @@ const publicationSchema = new Schema(
       validate: {
         validator: function (v) {
           // Remove hyphens and spaces for validation
-          const cleaned = v.replace(/[-\s]/g, '');
-          
+          const cleaned = v.replace(/[-\s]/g, "");
+
           // ISBN-10: 9 digits + 1 check digit (can be X)
           const isbn10Pattern = /^[0-9]{9}[0-9X]$/;
-          
+
           // ISBN-13: 13 digits starting with 978 or 979
           const isbn13Pattern = /^(978|979)[0-9]{10}$/;
-          
+
           // ISSN: 4 digits + hyphen + 3 digits + check digit (can be X)
           // For ISSN, we check the original format with hyphen
           const issnPattern = /^\d{4}-\d{3}[\dX]$/;
-          
-          return isbn10Pattern.test(cleaned) || 
-                 isbn13Pattern.test(cleaned) || 
-                 issnPattern.test(v);
+
+          return (
+            isbn10Pattern.test(cleaned) ||
+            isbn13Pattern.test(cleaned) ||
+            issnPattern.test(v)
+          );
         },
         message:
           "Invalid ISBN/ISSN format. Use ISBN-10, ISBN-13, or ISSN format",
@@ -127,6 +129,16 @@ const publicationSchema = new Schema(
       required: [true, "Department is required"],
       index: true,
     },
+    coAuthors: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function (v) {
+          return v && v.length <= 10;
+        },
+        message: "Cannot have more than 10 co-authors",
+      },
+    },
     coAuthorCount: {
       type: Number,
       default: 0,
@@ -141,19 +153,19 @@ const publicationSchema = new Schema(
 );
 
 // Add virtual for author department name
-publicationSchema.virtual('authorDepartment', {
-  ref: 'Department',
-  localField: 'authorDeptId',
-  foreignField: '_id',
-  justOne: true
+publicationSchema.virtual("authorDepartment", {
+  ref: "Department",
+  localField: "authorDeptId",
+  foreignField: "_id",
+  justOne: true,
 });
 
 // Add virtual for department name
-publicationSchema.virtual('departmentName', {
-  ref: 'Department',
-  localField: 'department',
-  foreignField: '_id',
-  justOne: true
+publicationSchema.virtual("departmentName", {
+  ref: "Department",
+  localField: "department",
+  foreignField: "_id",
+  justOne: true,
 });
 
 // Pre-save middleware to construct publication_date from publicationMonth and publicationYear

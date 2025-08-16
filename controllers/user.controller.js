@@ -14,6 +14,7 @@ const registerPublication = async (req, res) => {
     publicationMonth,
     publicationYear,
     title,
+    coAuthors,
     coAuthorCount,
   } = req.body;
 
@@ -148,6 +149,7 @@ const registerPublication = async (req, res) => {
       publication_date: publicationDate, // FIX: Set publication_date explicitly
       isbnIssn: isbnIssn.toUpperCase(),
       file_url: fileUploadResult.secure_url,
+      coAuthors: coAuthors,
       coAuthorCount: coAuthorCount ? parseInt(coAuthorCount) : 0,
     });
 
@@ -265,15 +267,8 @@ const registerAuthor = async (req, res) => {
       isActive: true,
     });
 
-    console.log("🔍 Attempting to save author:", {
-      employee_id: newAuthor.employee_id,
-      author_name: newAuthor.author_name,
-      publication_id: newAuthor.publication_id,
-      author_order: newAuthor.author_order,
-    });
-
     await newAuthor.save();
-    console.log("✅ Author registered successfully:", newAuthor._id);
+    console.log("Author registered successfully:", newAuthor._id);
 
     // Populate department info for response
     await newAuthor.populate("department", "name code");
@@ -290,7 +285,7 @@ const registerAuthor = async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("❌ Error registering author:", error);
+    console.error(" Error registering author:", error);
 
     // Handle duplicate key errors with detailed information
     if (error.code === 11000) {
@@ -315,7 +310,7 @@ const registerAuthor = async (req, res) => {
         errorType = "INDEX_CONFIGURATION_ERROR";
 
         // Log additional info for debugging
-        console.log("❌ CRITICAL: Problematic index still exists!");
+        console.log("CRITICAL: Problematic index still exists!");
         console.log("This should not happen with proper partial indexes.");
         console.log("Manual database intervention required.");
       }
