@@ -289,7 +289,7 @@ const registerAuthor = async (req, res) => {
 
     // Handle duplicate key errors with detailed information
     if (error.code === 11000) {
-      console.log("🔍 Duplicate key error details:");
+      console.log("Duplicate key error details:");
       console.log("- Key pattern:", error.keyPattern);
       console.log("- Key value:", error.keyValue);
       console.log("- Index:", error.index);
