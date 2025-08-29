@@ -1,4 +1,4 @@
-import { UploadOnCloudinary } from "../utils/cloudinary.js";
+import { UploadOnImageKit } from "../utils/ImageKit.js";
 import { Author, Department, Publication, Admin } from "../models/index.js";
 import fs from "fs"; // For cleaning up temp files
 
@@ -112,24 +112,24 @@ const registerPublication = async (req, res) => {
     console.log("Uploaded file:", req.file);
 
     // Upload file to Cloudinary
-    console.log("Uploading file to Cloudinary:", req.file.path);
-    const fileUploadResult = await UploadOnCloudinary(req.file.path);
+    console.log("Uploading file to ImageKit:", req.file.path);
+    const fileUploadResult = await UploadOnImageKit(req.file.path);
 
-    if (!fileUploadResult || !fileUploadResult.secure_url) {
-      console.error("Cloudinary upload failed");
+    if (!fileUploadResult || !fileUploadResult.url) {
+      console.error("ImageKit upload failed");
       // Clean up temp file if upload failed
       if (fs.existsSync(req.file.path)) {
         fs.unlinkSync(req.file.path);
       }
       return res.status(500).json({
-        message: "File upload to Cloudinary failed",
-        error: "Please check Cloudinary configuration",
+        message: "File upload to ImageKit failed",
+        error: "Please check ImageKit configuration",
       });
     }
 
     console.log(
-      "File uploaded successfully to Cloudinary:",
-      fileUploadResult.secure_url
+      "File uploaded successfully to ImageKit:",
+      fileUploadResult.url
     );
 
     // Create publication_date from month and year
@@ -148,7 +148,7 @@ const registerPublication = async (req, res) => {
       publicationYear: publicationYear.toString(),
       publication_date: publicationDate, // FIX: Set publication_date explicitly
       isbnIssn: isbnIssn.toUpperCase(),
-      file_url: fileUploadResult.secure_url,
+      file_url: fileUploadResult.url,
       coAuthors: coAuthors,
       coAuthorCount: coAuthorCount ? parseInt(coAuthorCount) : 0,
     });
@@ -171,7 +171,7 @@ const registerPublication = async (req, res) => {
     return res.status(201).json({
       message: "Publication registered successfully",
       publication: populatedPublication,
-      file_url: fileUploadResult.secure_url,
+      file_url: fileUploadResult.url,
     });
   } catch (error) {
     console.error("Error registering publication:", error);
